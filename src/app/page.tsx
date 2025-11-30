@@ -1,10 +1,8 @@
 import type { JSX } from "react";
-import { getRepositories } from "@/lib/repos";
-import { RepositoryList } from "@/components/repository-list";
+import { Suspense } from "react";
+import { Repositories } from "@/components/repositories";
 
-export default async function Home(): Promise<JSX.Element> {
-  const repositories = await getRepositories();
-
+export default function Home(): JSX.Element {
   return (
     <main className="min-h-screen p-8">
       <div className="max-w-6xl mx-auto">
@@ -20,7 +18,15 @@ export default async function Home(): Promise<JSX.Element> {
           </button>
         </div>
 
-        <RepositoryList initialRepositories={repositories} />
+        <Suspense
+          fallback={
+            <div className="text-center py-12 text-gray-500">
+              Loading repositories...
+            </div>
+          }
+        >
+          <Repositories />
+        </Suspense>
       </div>
     </main>
   );
