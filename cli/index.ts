@@ -40,7 +40,19 @@ program
 
           console.log('Installing dependencies...');
           execSync('npm install', { cwd: bareRoot, stdio: 'inherit' });
-          console.log('');
+
+          // Restart the process with updated code
+          console.log('Restarting with updated version...\n');
+          const child = spawn(process.argv[0], process.argv.slice(1), {
+            stdio: 'inherit',
+            detached: false,
+          });
+
+          child.on('exit', (code) => {
+            process.exit(code ?? 0);
+          });
+
+          return; // Exit this process
         } else {
           console.log('Already up to date.');
           console.log('');
