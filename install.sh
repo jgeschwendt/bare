@@ -23,17 +23,14 @@ if [ "$NODE_VERSION" -lt 22 ]; then
     exit 1
 fi
 
-# Create directories
-echo "Setting up ~/.bare-bones directory..."
-mkdir -p ~/.bare-bones
-
 # Clone bare repository
 echo "Cloning bare repository..."
-if [ -d ~/.bare-bones ]; then
+if [ -d ~/.bare-bones/.git ]; then
     echo "Updating existing installation..."
     cd ~/.bare-bones
     git pull origin main
 else
+    echo "Installing fresh copy..."
     git clone https://github.com/jgeschwendt/bare.git ~/.bare-bones
     cd ~/.bare-bones
 fi
