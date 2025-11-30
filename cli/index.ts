@@ -4,7 +4,8 @@ import { Command } from "commander";
 import { spawn, execSync } from "child_process";
 import { join } from "path";
 
-const bareRoot = join(import.meta.dirname, "..");
+const cwd = join(import.meta.dirname, "..");
+const encoding = "utf-8";
 const program = new Command();
 
 program
@@ -23,16 +24,17 @@ program
         console.log("Checking for updates...");
 
         // Fetch latest changes
-        execSync("git fetch origin main", { cwd: bareRoot, stdio: "pipe" });
+        execSync("git fetch origin main", { cwd, stdio: "pipe" });
 
         // Check if we're behind
         const localHash = execSync("git rev-parse HEAD", {
-          cwd: bareRoot,
-          encoding: "utf-8",
+          cwd,
+          encoding,
         }).trim();
+
         const remoteHash = execSync("git rev-parse origin/main", {
-          cwd: bareRoot,
-          encoding: "utf-8",
+          cwd,
+          encoding,
         }).trim();
 
         if (localHash !== remoteHash) {
@@ -40,12 +42,12 @@ program
 
           // Stash any local changes, pull, then pop stash
           execSync("git reset --hard origin/main", {
-            cwd: bareRoot,
+            cwd,
             stdio: "inherit",
           });
 
           console.log("Installing dependencies...");
-          execSync("npm install", { cwd: bareRoot, stdio: "inherit" });
+          execSync("npm install", { cwd, stdio: "inherit" });
 
           // Restart the process with updated code
           console.log("Restarting with updated version...\n");
@@ -70,7 +72,7 @@ program
       }
     }
 
-    const args = ["next", "dev", bareRoot];
+    const args = ["next", "dev", cwd];
 
     if (options.port) {
       args.push("-p", options.port);
