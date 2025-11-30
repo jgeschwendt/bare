@@ -50,13 +50,13 @@ program
       }
     }
 
-    const args = ['dev', bareRoot];
+    const args = ['next', 'dev', bareRoot];
 
     if (options.port) {
       args.push('-p', options.port);
     }
 
-    const child = spawn('next', args, {
+    const child = spawn('npx', args, {
       stdio: 'inherit',
     });
 
