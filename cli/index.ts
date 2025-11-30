@@ -24,12 +24,27 @@ program
     if (options.update !== false) {
       try {
         console.log('Checking for updates...');
-        execSync('git pull origin main', { cwd: bareRoot, stdio: 'inherit' });
 
-        console.log('Installing dependencies...');
-        execSync('npm install', { cwd: bareRoot, stdio: 'inherit' });
+        // Fetch latest changes
+        execSync('git fetch origin main', { cwd: bareRoot, stdio: 'pipe' });
 
-        console.log('');
+        // Check if we're behind
+        const localHash = execSync('git rev-parse HEAD', { cwd: bareRoot, encoding: 'utf-8' }).trim();
+        const remoteHash = execSync('git rev-parse origin/main', { cwd: bareRoot, encoding: 'utf-8' }).trim();
+
+        if (localHash !== remoteHash) {
+          console.log('Updates available, pulling latest changes...');
+
+          // Stash any local changes, pull, then pop stash
+          execSync('git reset --hard origin/main', { cwd: bareRoot, stdio: 'inherit' });
+
+          console.log('Installing dependencies...');
+          execSync('npm install', { cwd: bareRoot, stdio: 'inherit' });
+          console.log('');
+        } else {
+          console.log('Already up to date.');
+          console.log('');
+        }
       } catch (error) {
         console.warn('Warning: Auto-update failed, continuing with current version...');
       }
