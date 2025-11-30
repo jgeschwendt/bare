@@ -2,8 +2,9 @@
 
 import { Command } from "commander";
 import { spawn, execSync } from "child_process";
+import { join } from "path";
 
-const bareRoot = import.meta.dirname;
+const bareRoot = join(import.meta.dirname, "..");
 const program = new Command();
 
 program
