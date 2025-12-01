@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir } from "fs/promises";
+import { readFile, writeFile, mkdir, rm } from "fs/promises";
 import { join } from "path";
 import { homedir } from "os";
 import type { Repository, RegistryFile } from "./types";
@@ -81,6 +81,16 @@ export async function removeRepository(id: string): Promise<void> {
 
   if (index === -1) {
     throw new Error(`Repository not found: ${id}`);
+  }
+
+  const repo = registry.repositories[index];
+
+  // Delete the directory from disk
+  try {
+    await rm(repo.path, { recursive: true, force: true });
+  } catch (error) {
+    console.warn(`Failed to delete directory ${repo.path}:`, error);
+    // Continue with removing from registry even if directory deletion fails
   }
 
   registry.repositories.splice(index, 1);

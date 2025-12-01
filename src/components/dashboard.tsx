@@ -2,32 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AddRepositoryDialog } from "./add-repository-dialog";
+import { CloneDialog } from "./clone-dialog";
 
 export function Dashboard({ children }: { children: React.ReactNode }) {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
   const router = useRouter();
-
-  const handleAddRepository = async (repo: {
-    name: string;
-    path: string;
-    remoteUrl?: string;
-    type?: string;
-  }) => {
-    const response = await fetch("/api/repos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(repo),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Failed to add repository");
-    }
-
-    // Refresh the page to show the new repository
-    router.refresh();
-  };
 
   return (
     <>
@@ -43,10 +22,10 @@ export function Dashboard({ children }: { children: React.ReactNode }) {
               </p>
             </div>
             <button
-              onClick={() => setIsDialogOpen(true)}
+              onClick={() => setIsCloneDialogOpen(true)}
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
             >
-              Add Repository
+              Clone Repository
             </button>
           </div>
 
@@ -54,10 +33,10 @@ export function Dashboard({ children }: { children: React.ReactNode }) {
         </div>
       </main>
 
-      <AddRepositoryDialog
-        isOpen={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
-        onAdd={handleAddRepository}
+      <CloneDialog
+        isOpen={isCloneDialogOpen}
+        onClose={() => setIsCloneDialogOpen(false)}
+        onComplete={() => router.refresh()}
       />
     </>
   );

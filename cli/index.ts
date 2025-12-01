@@ -78,9 +78,7 @@ program
       args.push("-p", options.port);
     }
 
-    const child = spawn("npx", args, {
-      stdio: "inherit",
-    });
+    const child = spawn("npx", args, { stdio: "inherit" });
 
     child.on("error", (error) => {
       console.error("Failed to start:", error);

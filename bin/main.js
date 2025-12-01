@@ -3,9 +3,9 @@
 import { spawn } from "child_process";
 import { join } from "path";
 
-const cliPath = join(import.meta.dirname, "../cli/index.ts");
+const cli = join(import.meta.dirname, "../cli/index.ts");
 
-const child = spawn("npx", ["tsx", cliPath, ...process.argv.slice(2)], {
+const child = spawn("npx", ["tsx", cli, ...process.argv.slice(2)], {
   stdio: "inherit",
 });
 
