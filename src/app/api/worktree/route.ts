@@ -55,26 +55,38 @@ export async function POST(request: NextRequest) {
           controller.enqueue(encoder.encode(`data: ${message}\n\n`));
         };
 
+        const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
         try {
           // Step 1: Update __main__ worktree
           send("Updating __main__ worktree...");
           await updateMainWorktree(repoPath);
+          await delay(300);
           send("✓ __main__ updated");
+          await delay(300);
 
           // Step 2: Install dependencies in __main__
           send("Installing dependencies in __main__...");
           await installDependencies(repoPath);
+          await delay(300);
           send("✓ Dependencies installed in __main__");
+          await delay(300);
 
           // Step 3: Create new worktree
           send(`Creating worktree ${worktreeName}...`);
           const path = await addWorktree(repoPath, worktreeName, branch);
+          await delay(300);
           send(`✓ Worktree created at ${path}`);
+          await delay(300);
 
           // Step 4: Copy node_modules and install deltas
           send("Copying node_modules with hardlinks...");
           await installWorktreeDependencies(repoPath, worktreeName);
+          await delay(300);
           send("✓ Dependencies installed in worktree");
+          await delay(300);
+          send("✓ Worktree ready!");
+          await delay(500);
 
           send("[DONE]");
           controller.close();
