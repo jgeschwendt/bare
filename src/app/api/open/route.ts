@@ -18,10 +18,6 @@ export async function POST(request: NextRequest) {
       let args: string[];
 
       switch (app) {
-        case "cursor":
-          command = "open";
-          args = ["-a", "Cursor", path];
-          break;
         case "vscode":
           command = "open";
           args = ["-a", "Visual Studio Code", path];

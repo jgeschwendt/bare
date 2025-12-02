@@ -102,7 +102,9 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
 
     try {
       const response = await fetch(
-        `/api/worktree?repoPath=${encodeURIComponent(repoPath)}&worktreeName=${encodeURIComponent(worktreeName)}`,
+        `/api/worktree?repoPath=${encodeURIComponent(
+          repoPath
+        )}&worktreeName=${encodeURIComponent(worktreeName)}`,
         { method: "DELETE" }
       );
 
@@ -114,7 +116,9 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
       await fetchWorktrees();
       onRefresh?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to remove worktree");
+      setError(
+        err instanceof Error ? err.message : "Failed to remove worktree"
+      );
     }
   };
 
@@ -122,7 +126,10 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
     setIsAddingWorktree(true);
   };
 
-  const handleOpen = async (worktreePath: string, app: "cursor" | "vscode" | "terminal") => {
+  const handleOpen = async (
+    worktreePath: string,
+    app: "vscode" | "terminal"
+  ) => {
     try {
       const response = await fetch("/api/open", {
         method: "POST",
@@ -162,10 +169,15 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
       )}
 
       {isAddingWorktree && (
-        <form onSubmit={handleAddWorktree} className="mb-3 p-3 bg-gray-50 rounded">
+        <form
+          onSubmit={handleAddWorktree}
+          className="mb-3 p-3 bg-gray-50 rounded"
+        >
           <div className="space-y-2">
             <div>
-              <label className="block text-xs font-medium mb-1">Worktree Name</label>
+              <label className="block text-xs font-medium mb-1">
+                Worktree Name
+              </label>
               <input
                 type="text"
                 required
@@ -176,7 +188,8 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
                 disabled={isCreating}
               />
               <p className="text-xs text-gray-500 mt-1">
-                Updates main, installs deps, creates new branch from main, copies node_modules (fast with hardlinks)
+                Updates main, installs deps, creates new branch from main,
+                copies node_modules (fast with hardlinks)
               </p>
             </div>
 
@@ -220,7 +233,8 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
         ) : (
           worktrees.map((wt, index) => {
             const name = basename(wt.path);
-            const branchName = wt.branch?.replace("refs/heads/", "") || "detached";
+            const branchName =
+              wt.branch?.replace("refs/heads/", "") || "detached";
             const isProtected = wt.bare || name === "__main__";
 
             return (
@@ -232,18 +246,22 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
                   <div className="font-medium">{name}</div>
                   <div className="text-xs text-gray-600">
                     {branchName}
-                    {wt.bare && <span className="ml-2 text-gray-400">(bare)</span>}
-                    {name === "__main__" && <span className="ml-2 text-gray-400">(protected)</span>}
+                    {wt.bare && (
+                      <span className="ml-2 text-gray-400">(bare)</span>
+                    )}
+                    {name === "__main__" && (
+                      <span className="ml-2 text-gray-400">(protected)</span>
+                    )}
                   </div>
                 </div>
                 {!isProtected && (
                   <div className="flex gap-1">
                     <button
-                      onClick={() => handleOpen(wt.path, "cursor")}
+                      onClick={() => handleOpen(wt.path, "vscode")}
                       className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded"
-                      title="Open in Cursor"
+                      title="Open in VS Code"
                     >
-                      Cursor
+                      Code
                     </button>
                     <button
                       onClick={() => handleOpen(wt.path, "terminal")}
@@ -263,11 +281,11 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
                 {isProtected && name === "__main__" && (
                   <div className="flex gap-1">
                     <button
-                      onClick={() => handleOpen(wt.path, "cursor")}
+                      onClick={() => handleOpen(wt.path, "vscode")}
                       className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded"
-                      title="Open in Cursor"
+                      title="Open in VS Code"
                     >
-                      Cursor
+                      Code
                     </button>
                     <button
                       onClick={() => handleOpen(wt.path, "terminal")}
