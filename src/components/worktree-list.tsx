@@ -145,7 +145,7 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
                 className="w-full px-2 py-1 text-sm border rounded focus:ring-2 focus:ring-blue-500"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Updates main, installs deps, creates new branch from main
+                Updates main, installs deps, creates new branch from main, copies node_modules (fast with hardlinks)
               </p>
             </div>
             <div className="flex gap-2">
