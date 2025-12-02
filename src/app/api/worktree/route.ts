@@ -8,6 +8,7 @@ import {
   installDependencies,
   installWorktreeDependencies,
 } from "@/lib/git";
+import { log } from "@/lib/logger";
 
 export async function GET(request: NextRequest) {
   try {
@@ -51,8 +52,21 @@ export async function POST(request: NextRequest) {
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
+        const startTime = Date.now();
+        let lastStepTime = startTime;
+
         const send = (message: string) => {
           controller.enqueue(encoder.encode(`data: ${message}\n\n`));
+        };
+
+        const sendTimed = (message: string) => {
+          const now = Date.now();
+          const stepDuration = ((now - lastStepTime) / 1000).toFixed(1);
+          const totalDuration = ((now - startTime) / 1000).toFixed(1);
+          const logMessage = `[WORKTREE] [+${stepDuration}s | ${totalDuration}s total] ${message}`;
+          send(`[+${stepDuration}s | ${totalDuration}s total] ${message}`);
+          log(logMessage);
+          lastStepTime = now;
         };
 
         const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -60,32 +74,37 @@ export async function POST(request: NextRequest) {
         try {
           // Step 1: Update __main__ worktree
           send("Updating __main__ worktree...");
+          log(`[WORKTREE] Starting worktree creation: ${repoPath}/${worktreeName}`);
+          lastStepTime = Date.now();
           await updateMainWorktree(repoPath);
           await delay(300);
-          send("✓ __main__ updated");
+          sendTimed("✓ __main__ updated");
           await delay(300);
 
           // Step 2: Install dependencies in __main__
           send("Installing dependencies in __main__...");
           await installDependencies(repoPath);
           await delay(300);
-          send("✓ Dependencies installed in __main__");
+          sendTimed("✓ Dependencies installed in __main__");
           await delay(300);
 
           // Step 3: Create new worktree
           send(`Creating worktree ${worktreeName}...`);
           const path = await addWorktree(repoPath, worktreeName, branch);
           await delay(300);
-          send(`✓ Worktree created at ${path}`);
+          sendTimed(`✓ Worktree created at ${path}`);
           await delay(300);
 
           // Step 4: Copy node_modules and install deltas
           send("Copying node_modules with hardlinks...");
           await installWorktreeDependencies(repoPath, worktreeName);
           await delay(300);
-          send("✓ Dependencies installed in worktree");
+          sendTimed("✓ Dependencies installed in worktree");
           await delay(300);
-          send("✓ Worktree ready!");
+
+          const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+          send(`✓ Worktree ready! Total time: ${totalTime}s`);
+          log(`[WORKTREE] ✓ Worktree ready! Total time: ${totalTime}s`);
           await delay(500);
 
           send("[DONE]");
