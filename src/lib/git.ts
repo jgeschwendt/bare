@@ -341,12 +341,27 @@ export async function addWorktree(
   worktreeName: string,
   branch?: string
 ): Promise<string> {
-  return new Promise((resolve, reject) => {
-    // If no branch specified, create new branch from current HEAD (main)
-    // git worktree add <path> creates a new branch with the same name as the directory
-    const args = branch
-      ? ["worktree", "add", worktreeName, branch]
-      : ["worktree", "add", "-b", worktreeName, worktreeName, "main"];
+  return new Promise(async (resolve, reject) => {
+    let args: string[];
+
+    if (branch) {
+      // Use specified branch
+      args = ["worktree", "add", worktreeName, branch];
+    } else {
+      // Check if branch already exists
+      const branches = await listBranches(repoPath);
+      const branchExists = branches.some(
+        (b) => b === worktreeName || b === `origin/${worktreeName}`
+      );
+
+      if (branchExists) {
+        // Branch exists, use -B to force create/reset it from main
+        args = ["worktree", "add", "-B", worktreeName, worktreeName, "main"];
+      } else {
+        // Branch doesn't exist, create it
+        args = ["worktree", "add", "-b", worktreeName, worktreeName, "main"];
+      }
+    }
 
     const git = spawn("git", args, { cwd: repoPath });
 
