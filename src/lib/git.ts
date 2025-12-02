@@ -2,6 +2,7 @@ import { spawn } from "child_process";
 import { mkdir, access, readFile } from "fs/promises";
 import { join } from "path";
 import { homedir } from "os";
+import { detectPackageManager, type PackageManager } from "./detect";
 
 function extractGitHubUsername(url: string): string {
   // Handle SSH format: git@github.com:username/repo.git
@@ -310,12 +311,18 @@ export async function updateMainWorktree(repoPath: string): Promise<void> {
   });
 }
 
-export async function installDependencies(repoPath: string): Promise<void> {
-  return new Promise((resolve, reject) => {
+export async function installDependencies(
+  repoPath: string,
+  packageManager?: PackageManager
+): Promise<void> {
+  return new Promise(async (resolve, reject) => {
     const mainPath = join(repoPath, "__main__");
 
+    // Detect package manager if not provided
+    const pm = packageManager || (await detectPackageManager(repoPath));
+
     // Install dependencies
-    const install = spawn("npm", ["install"], { cwd: mainPath });
+    const install = spawn(pm, ["install"], { cwd: mainPath });
 
     install.on("exit", (code) => {
       if (code === 0) {
@@ -387,5 +394,90 @@ export async function removeWorktree(
     });
 
     git.on("error", reject);
+  });
+}
+
+export async function installWorktreeDependencies(
+  repoPath: string,
+  worktreeName: string
+): Promise<void> {
+  const mainPath = join(repoPath, "__main__");
+  const worktreePath = join(repoPath, worktreeName);
+  const mainNodeModules = join(mainPath, "node_modules");
+  const worktreeNodeModules = join(worktreePath, "node_modules");
+
+  // Detect package manager
+  const packageManager = await detectPackageManager(repoPath);
+
+  // Check if __main__ has node_modules
+  try {
+    await access(mainNodeModules);
+  } catch {
+    // No node_modules in __main__, just run install in worktree
+    return new Promise((resolve, reject) => {
+      const install = spawn(packageManager, ["install"], { cwd: worktreePath });
+
+      install.on("exit", (code) => {
+        if (code === 0) {
+          resolve();
+        } else {
+          reject(new Error(`Failed to install dependencies in worktree: exit code ${code}`));
+        }
+      });
+
+      install.on("error", reject);
+    });
+  }
+
+  // Copy node_modules from __main__ using hardlinks
+  return new Promise((resolve, reject) => {
+    const copy = spawn("cp", ["-al", mainNodeModules, worktreeNodeModules], {
+      cwd: repoPath,
+    });
+
+    copy.on("exit", async (copyCode) => {
+      if (copyCode === 0) {
+        // Run install in worktree to catch any deltas
+        const install = spawn(packageManager, ["install"], { cwd: worktreePath });
+
+        install.on("exit", (installCode) => {
+          if (installCode === 0) {
+            resolve();
+          } else {
+            reject(new Error(`Failed to install delta dependencies: exit code ${installCode}`));
+          }
+        });
+
+        install.on("error", reject);
+      } else {
+        // If copy failed, try regular install
+        const install = spawn(packageManager, ["install"], { cwd: worktreePath });
+
+        install.on("exit", (installCode) => {
+          if (installCode === 0) {
+            resolve();
+          } else {
+            reject(new Error(`Failed to install dependencies in worktree: exit code ${installCode}`));
+          }
+        });
+
+        install.on("error", reject);
+      }
+    });
+
+    copy.on("error", async () => {
+      // If copy command fails, fall back to regular install
+      const install = spawn(packageManager, ["install"], { cwd: worktreePath });
+
+      install.on("exit", (installCode) => {
+        if (installCode === 0) {
+          resolve();
+        } else {
+          reject(new Error(`Failed to install dependencies in worktree: exit code ${installCode}`));
+        }
+      });
+
+      install.on("error", reject);
+    });
   });
 }

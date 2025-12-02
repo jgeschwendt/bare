@@ -6,6 +6,7 @@ import {
   removeWorktree,
   updateMainWorktree,
   installDependencies,
+  installWorktreeDependencies,
 } from "@/lib/git";
 
 export async function GET(request: NextRequest) {
@@ -54,6 +55,9 @@ export async function POST(request: NextRequest) {
 
     // Step 3: Create new worktree (branch optional - creates new branch from main if not specified)
     const path = await addWorktree(repoPath, worktreeName, branch);
+
+    // Step 4: Copy node_modules from __main__ and install deltas
+    await installWorktreeDependencies(repoPath, worktreeName);
 
     return NextResponse.json({ path }, { status: 201 });
   } catch (error) {
