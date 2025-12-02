@@ -72,13 +72,15 @@ program
       }
     }
 
-    const args = ["next", "dev", cwd];
+    const args = ["dev", cwd];
 
     if (options.port) {
       args.push("-p", options.port);
     }
 
-    const child = spawn("npx", args, { stdio: "inherit" });
+    const child = spawn(join(cwd, "node_modules/.bin/next"), args, {
+      stdio: "inherit",
+    });
 
     child.on("error", (error) => {
       console.error("Failed to start:", error);
