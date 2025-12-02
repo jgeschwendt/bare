@@ -181,7 +181,7 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
             </div>
 
             {isCreating && progress.length > 0 && (
-              <div className="p-2 bg-white border rounded text-xs font-mono max-h-32 overflow-y-auto">
+              <div className="p-2 bg-white border rounded text-xs font-mono">
                 {progress.map((line, i) => (
                   <div key={i} className="text-gray-700">
                     {line}
