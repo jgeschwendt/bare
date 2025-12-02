@@ -14,8 +14,6 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAddingWorktree, setIsAddingWorktree] = useState(false);
-  const [branches, setBranches] = useState<string[]>([]);
-  const [selectedBranch, setSelectedBranch] = useState("");
   const [worktreeName, setWorktreeName] = useState("");
 
   const fetchWorktrees = async () => {
@@ -35,19 +33,6 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
     }
   };
 
-  const fetchBranches = async () => {
-    try {
-      const response = await fetch(
-        `/api/worktree?repoPath=${encodeURIComponent(repoPath)}&action=branches`
-      );
-      if (!response.ok) throw new Error("Failed to fetch branches");
-      const data = await response.json();
-      setBranches(data.branches || []);
-    } catch (err) {
-      console.error("Failed to fetch branches:", err);
-    }
-  };
-
   useEffect(() => {
     fetchWorktrees();
   }, [repoPath]);
@@ -62,7 +47,6 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           repoPath,
-          branch: selectedBranch,
           worktreeName,
         }),
       });
@@ -75,7 +59,6 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
       await fetchWorktrees();
       setIsAddingWorktree(false);
       setWorktreeName("");
-      setSelectedBranch("");
       onRefresh?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add worktree");
@@ -105,9 +88,8 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
     }
   };
 
-  const handleOpenAddDialog = async () => {
+  const handleOpenAddDialog = () => {
     setIsAddingWorktree(true);
-    await fetchBranches();
   };
 
   const handleOpen = async (worktreePath: string, app: "cursor" | "vscode" | "terminal") => {
@@ -153,22 +135,6 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
         <form onSubmit={handleAddWorktree} className="mb-3 p-3 bg-gray-50 rounded">
           <div className="space-y-2">
             <div>
-              <label className="block text-xs font-medium mb-1">Branch</label>
-              <select
-                required
-                value={selectedBranch}
-                onChange={(e) => setSelectedBranch(e.target.value)}
-                className="w-full px-2 py-1 text-sm border rounded focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Select a branch...</option>
-                {branches.map((branch) => (
-                  <option key={branch} value={branch}>
-                    {branch}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
               <label className="block text-xs font-medium mb-1">Worktree Name</label>
               <input
                 type="text"
@@ -178,6 +144,9 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
                 placeholder="feature-xyz"
                 className="w-full px-2 py-1 text-sm border rounded focus:ring-2 focus:ring-blue-500"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Updates main, installs deps, creates new branch from main
+              </p>
             </div>
             <div className="flex gap-2">
               <button
@@ -205,6 +174,7 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
           worktrees.map((wt, index) => {
             const name = basename(wt.path);
             const branchName = wt.branch?.replace("refs/heads/", "") || "detached";
+            const isProtected = wt.bare || name === "__main__";
 
             return (
               <div
@@ -216,9 +186,10 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
                   <div className="text-xs text-gray-600">
                     {branchName}
                     {wt.bare && <span className="ml-2 text-gray-400">(bare)</span>}
+                    {name === "__main__" && <span className="ml-2 text-gray-400">(protected)</span>}
                   </div>
                 </div>
-                {!wt.bare && (
+                {!isProtected && (
                   <div className="flex gap-1">
                     <button
                       onClick={() => handleOpen(wt.path, "cursor")}
@@ -239,6 +210,24 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
                       className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded"
                     >
                       Remove
+                    </button>
+                  </div>
+                )}
+                {isProtected && name === "__main__" && (
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => handleOpen(wt.path, "cursor")}
+                      className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded"
+                      title="Open in Cursor"
+                    >
+                      Cursor
+                    </button>
+                    <button
+                      onClick={() => handleOpen(wt.path, "terminal")}
+                      className="px-2 py-1 text-xs text-green-600 hover:bg-green-50 rounded"
+                      title="Open in Terminal"
+                    >
+                      Terminal
                     </button>
                   </div>
                 )}

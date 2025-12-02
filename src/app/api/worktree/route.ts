@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { listWorktrees, listBranches, addWorktree, removeWorktree } from "@/lib/git";
+import {
+  listWorktrees,
+  listBranches,
+  addWorktree,
+  removeWorktree,
+  updateMainWorktree,
+  installDependencies,
+} from "@/lib/git";
 
 export async function GET(request: NextRequest) {
   try {
@@ -32,14 +39,22 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { repoPath, branch, worktreeName } = body;
 
-    if (!repoPath || !branch || !worktreeName) {
+    if (!repoPath || !worktreeName) {
       return NextResponse.json(
-        { error: "Missing required fields: repoPath, branch, worktreeName" },
+        { error: "Missing required fields: repoPath, worktreeName" },
         { status: 400 }
       );
     }
 
-    const path = await addWorktree(repoPath, branch, worktreeName);
+    // Step 1: Update __main__ worktree
+    await updateMainWorktree(repoPath);
+
+    // Step 2: Install dependencies in __main__
+    await installDependencies(repoPath);
+
+    // Step 3: Create new worktree (branch optional - creates new branch from main if not specified)
+    const path = await addWorktree(repoPath, worktreeName, branch);
+
     return NextResponse.json({ path }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

@@ -32,7 +32,12 @@ export async function cloneRepository(
     throw new Error(`Repository already exists at ${fullPath}`);
   } catch (error: unknown) {
     // If error is not ENOENT (file not found), rethrow
-    if (error && typeof error === "object" && "code" in error && error.code !== "ENOENT") {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code !== "ENOENT"
+    ) {
       throw error;
     }
     // Otherwise directory doesn't exist, continue with clone
@@ -73,7 +78,11 @@ export async function cloneRepository(
           // Configure remote fetch for origin
           const config = spawn(
             "git",
-            ["config", "remote.origin.fetch", "+refs/heads/*:refs/remotes/origin/*"],
+            [
+              "config",
+              "remote.origin.fetch",
+              "+refs/heads/*:refs/remotes/origin/*",
+            ],
             { cwd: fullPath }
           );
 
@@ -82,9 +91,13 @@ export async function cloneRepository(
               onProgress("Configured remote fetch");
 
               // Create main worktree
-              const worktree = spawn("git", ["worktree", "add", "__main__", "main"], {
-                cwd: fullPath,
-              });
+              const worktree = spawn(
+                "git",
+                ["worktree", "add", "__main__", "main"],
+                {
+                  cwd: fullPath,
+                }
+              );
 
               worktree.on("exit", (wtCode) => {
                 if (wtCode === 0) {
@@ -177,9 +190,13 @@ export async function getRemoteUrl(path: string): Promise<string | undefined> {
   });
 }
 
-export async function listWorktrees(repoPath: string): Promise<import("./types").Worktree[]> {
+export async function listWorktrees(
+  repoPath: string
+): Promise<import("./types").Worktree[]> {
   return new Promise((resolve, reject) => {
-    const git = spawn("git", ["worktree", "list", "--porcelain"], { cwd: repoPath });
+    const git = spawn("git", ["worktree", "list", "--porcelain"], {
+      cwd: repoPath,
+    });
     let output = "";
 
     git.stdout?.on("data", (data) => {
@@ -226,7 +243,9 @@ export async function listWorktrees(repoPath: string): Promise<import("./types")
 
 export async function listBranches(repoPath: string): Promise<string[]> {
   return new Promise((resolve, reject) => {
-    const git = spawn("git", ["branch", "-a", "--format=%(refname:short)"], { cwd: repoPath });
+    const git = spawn("git", ["branch", "-a", "--format=%(refname:short)"], {
+      cwd: repoPath,
+    });
     let output = "";
 
     git.stdout?.on("data", (data) => {
@@ -238,8 +257,8 @@ export async function listBranches(repoPath: string): Promise<string[]> {
         const branches = output
           .split("\n")
           .filter(Boolean)
-          .map(b => b.trim())
-          .filter(b => !b.startsWith("origin/HEAD"));
+          .map((b) => b.trim())
+          .filter((b) => !b.startsWith("origin/HEAD"));
         resolve(branches);
       } else {
         reject(new Error(`Failed to list branches: exit code ${code}`));
@@ -250,13 +269,79 @@ export async function listBranches(repoPath: string): Promise<string[]> {
   });
 }
 
+export async function updateMainWorktree(repoPath: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const mainPath = join(repoPath, "__main__");
+
+    // Pull latest changes from origin/main explicitly
+    const pull = spawn("git", ["pull", "origin", "main"], { cwd: mainPath });
+    let stdout = "";
+    let stderr = "";
+
+    pull.stdout?.on("data", (data) => {
+      stdout += data.toString();
+    });
+
+    pull.stderr?.on("data", (data) => {
+      stderr += data.toString();
+    });
+
+    pull.on("exit", (code) => {
+      const output = stdout + stderr;
+
+      // Exit code 1 with "Already up to date" is fine
+      const isAlreadyUpToDate =
+        output.includes("Already up to date") ||
+        output.includes("Already up-to-date");
+
+      if (code === 0 || isAlreadyUpToDate) {
+        resolve();
+      } else {
+        // Provide more helpful error message
+        const errorMsg =
+          stderr.trim() ||
+          stdout.trim() ||
+          `Failed to pull in __main__: exit code ${code}`;
+        reject(new Error(errorMsg));
+      }
+    });
+
+    pull.on("error", reject);
+  });
+}
+
+export async function installDependencies(repoPath: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const mainPath = join(repoPath, "__main__");
+
+    // Install dependencies
+    const install = spawn("npm", ["install"], { cwd: mainPath });
+
+    install.on("exit", (code) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`Failed to install dependencies: exit code ${code}`));
+      }
+    });
+
+    install.on("error", reject);
+  });
+}
+
 export async function addWorktree(
   repoPath: string,
-  branch: string,
-  worktreeName: string
+  worktreeName: string,
+  branch?: string
 ): Promise<string> {
   return new Promise((resolve, reject) => {
-    const git = spawn("git", ["worktree", "add", worktreeName, branch], { cwd: repoPath });
+    // If no branch specified, create new branch from current HEAD (main)
+    // git worktree add <path> creates a new branch with the same name as the directory
+    const args = branch
+      ? ["worktree", "add", worktreeName, branch]
+      : ["worktree", "add", "-b", worktreeName, worktreeName, "main"];
+
+    const git = spawn("git", args, { cwd: repoPath });
 
     git.on("exit", (code) => {
       if (code === 0) {
@@ -282,7 +367,9 @@ export async function removeWorktree(
   worktreeName: string
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    const git = spawn("git", ["worktree", "remove", worktreeName, "--force"], { cwd: repoPath });
+    const git = spawn("git", ["worktree", "remove", worktreeName, "--force"], {
+      cwd: repoPath,
+    });
 
     git.on("exit", (code) => {
       if (code === 0) {
