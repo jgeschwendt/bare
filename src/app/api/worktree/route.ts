@@ -47,19 +47,52 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Step 1: Update __main__ worktree
-    await updateMainWorktree(repoPath);
+    // Return SSE stream
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        const send = (message: string) => {
+          controller.enqueue(encoder.encode(`data: ${message}\n\n`));
+        };
 
-    // Step 2: Install dependencies in __main__
-    await installDependencies(repoPath);
+        try {
+          // Step 1: Update __main__ worktree
+          send("Updating __main__ worktree...");
+          await updateMainWorktree(repoPath);
+          send("✓ __main__ updated");
 
-    // Step 3: Create new worktree (branch optional - creates new branch from main if not specified)
-    const path = await addWorktree(repoPath, worktreeName, branch);
+          // Step 2: Install dependencies in __main__
+          send("Installing dependencies in __main__...");
+          await installDependencies(repoPath);
+          send("✓ Dependencies installed in __main__");
 
-    // Step 4: Copy node_modules from __main__ and install deltas
-    await installWorktreeDependencies(repoPath, worktreeName);
+          // Step 3: Create new worktree
+          send(`Creating worktree ${worktreeName}...`);
+          const path = await addWorktree(repoPath, worktreeName, branch);
+          send(`✓ Worktree created at ${path}`);
 
-    return NextResponse.json({ path }, { status: 201 });
+          // Step 4: Copy node_modules and install deltas
+          send("Copying node_modules with hardlinks...");
+          await installWorktreeDependencies(repoPath, worktreeName);
+          send("✓ Dependencies installed in worktree");
+
+          send("[DONE]");
+          controller.close();
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          send(`ERROR: ${message}`);
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return NextResponse.json({ error: message }, { status: 400 });

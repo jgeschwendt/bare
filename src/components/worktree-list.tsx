@@ -15,6 +15,8 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
   const [error, setError] = useState<string | null>(null);
   const [isAddingWorktree, setIsAddingWorktree] = useState(false);
   const [worktreeName, setWorktreeName] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
+  const [progress, setProgress] = useState<string[]>([]);
 
   const fetchWorktrees = async () => {
     setIsLoading(true);
@@ -40,6 +42,8 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
   const handleAddWorktree = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setProgress([]);
+    setIsCreating(true);
 
     try {
       const response = await fetch("/api/worktree", {
@@ -51,17 +55,43 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
         }),
       });
 
-      if (!response.ok) {
+      if (!response.ok || !response.body) {
         const data = await response.json();
         throw new Error(data.error || "Failed to add worktree");
       }
 
-      await fetchWorktrees();
-      setIsAddingWorktree(false);
-      setWorktreeName("");
-      onRefresh?.();
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6);
+            if (data === "[DONE]") {
+              setIsCreating(false);
+              await fetchWorktrees();
+              setIsAddingWorktree(false);
+              setWorktreeName("");
+              setProgress([]);
+              onRefresh?.();
+            } else if (data.startsWith("ERROR: ")) {
+              setError(data.slice(7));
+              setIsCreating(false);
+            } else {
+              setProgress((prev) => [...prev, data]);
+            }
+          }
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add worktree");
+      setIsCreating(false);
     }
   };
 
@@ -143,24 +173,41 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
                 onChange={(e) => setWorktreeName(e.target.value)}
                 placeholder="feature-xyz"
                 className="w-full px-2 py-1 text-sm border rounded focus:ring-2 focus:ring-blue-500"
+                disabled={isCreating}
               />
               <p className="text-xs text-gray-500 mt-1">
                 Updates main, installs deps, creates new branch from main, copies node_modules (fast with hardlinks)
               </p>
             </div>
+
+            {isCreating && progress.length > 0 && (
+              <div className="p-2 bg-white border rounded text-xs font-mono max-h-32 overflow-y-auto">
+                {progress.map((line, i) => (
+                  <div key={i} className="text-gray-700">
+                    {line}
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => setIsAddingWorktree(false)}
+                onClick={() => {
+                  setIsAddingWorktree(false);
+                  setProgress([]);
+                }}
                 className="flex-1 px-2 py-1 text-sm border rounded hover:bg-gray-50"
+                disabled={isCreating}
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="flex-1 px-2 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                className="flex-1 px-2 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
+                disabled={isCreating}
               >
-                Add
+                {isCreating ? "Creating..." : "Add"}
               </button>
             </div>
           </div>
