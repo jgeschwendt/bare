@@ -1,6 +1,7 @@
 "use client";
 
 import type { Repository } from "@/lib/types";
+import { WorktreeList } from "./worktree-list";
 
 interface RepositoryCardProps {
   repository: Repository;
@@ -22,6 +23,8 @@ export function RepositoryCard({ repository, onDelete }: RepositoryCardProps) {
               {repository.type}
             </span>
           )}
+
+          <WorktreeList repoPath={repository.path} />
         </div>
         <div className="flex gap-2">
           {onDelete && (

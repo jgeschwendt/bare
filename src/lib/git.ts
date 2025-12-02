@@ -176,3 +176,129 @@ export async function getRemoteUrl(path: string): Promise<string | undefined> {
     });
   });
 }
+
+export async function listWorktrees(repoPath: string): Promise<import("./types").Worktree[]> {
+  return new Promise((resolve, reject) => {
+    const git = spawn("git", ["worktree", "list", "--porcelain"], { cwd: repoPath });
+    let output = "";
+
+    git.stdout?.on("data", (data) => {
+      output += data.toString();
+    });
+
+    git.on("exit", (code) => {
+      if (code === 0) {
+        const worktrees: import("./types").Worktree[] = [];
+        const entries = output.split("\n\n").filter(Boolean);
+
+        for (const entry of entries) {
+          const lines = entry.split("\n");
+          const worktree: Partial<import("./types").Worktree> = {};
+
+          for (const line of lines) {
+            if (line.startsWith("worktree ")) {
+              worktree.path = line.slice(9);
+            } else if (line.startsWith("HEAD ")) {
+              worktree.head = line.slice(5);
+            } else if (line.startsWith("branch ")) {
+              worktree.branch = line.slice(7);
+            } else if (line === "bare") {
+              worktree.bare = true;
+            } else if (line === "detached") {
+              worktree.detached = true;
+            }
+          }
+
+          if (worktree.path) {
+            worktrees.push(worktree as import("./types").Worktree);
+          }
+        }
+
+        resolve(worktrees);
+      } else {
+        reject(new Error(`Failed to list worktrees: exit code ${code}`));
+      }
+    });
+
+    git.on("error", reject);
+  });
+}
+
+export async function listBranches(repoPath: string): Promise<string[]> {
+  return new Promise((resolve, reject) => {
+    const git = spawn("git", ["branch", "-a", "--format=%(refname:short)"], { cwd: repoPath });
+    let output = "";
+
+    git.stdout?.on("data", (data) => {
+      output += data.toString();
+    });
+
+    git.on("exit", (code) => {
+      if (code === 0) {
+        const branches = output
+          .split("\n")
+          .filter(Boolean)
+          .map(b => b.trim())
+          .filter(b => !b.startsWith("origin/HEAD"));
+        resolve(branches);
+      } else {
+        reject(new Error(`Failed to list branches: exit code ${code}`));
+      }
+    });
+
+    git.on("error", reject);
+  });
+}
+
+export async function addWorktree(
+  repoPath: string,
+  branch: string,
+  worktreeName: string
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const git = spawn("git", ["worktree", "add", worktreeName, branch], { cwd: repoPath });
+
+    git.on("exit", (code) => {
+      if (code === 0) {
+        resolve(join(repoPath, worktreeName));
+      } else {
+        reject(new Error(`Failed to add worktree: exit code ${code}`));
+      }
+    });
+
+    git.stderr?.on("data", (data) => {
+      const message = data.toString();
+      if (message.toLowerCase().includes("fatal")) {
+        reject(new Error(message));
+      }
+    });
+
+    git.on("error", reject);
+  });
+}
+
+export async function removeWorktree(
+  repoPath: string,
+  worktreeName: string
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const git = spawn("git", ["worktree", "remove", worktreeName, "--force"], { cwd: repoPath });
+
+    git.on("exit", (code) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`Failed to remove worktree: exit code ${code}`));
+      }
+    });
+
+    git.stderr?.on("data", (data) => {
+      const message = data.toString();
+      if (message.toLowerCase().includes("fatal")) {
+        reject(new Error(message));
+      }
+    });
+
+    git.on("error", reject);
+  });
+}
