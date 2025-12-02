@@ -28,7 +28,8 @@ echo "Cloning bare repository..."
 if [ -d ~/.bare-bones/.git ]; then
     echo "Updating existing installation..."
     cd ~/.bare-bones
-    git pull origin main
+    git fetch origin main
+    git reset --hard origin/main
 else
     echo "Installing fresh copy..."
     git clone https://github.com/jgeschwendt/bare.git ~/.bare-bones
@@ -53,8 +54,7 @@ if command -v bare &> /dev/null; then
     echo -e "${GREEN}✓ bare installed successfully!${CT}"
     echo ""
     echo "Get started:"
-    echo "  bare dev          # Start the dashboard"
-    echo "  bare clone <url>  # Clone a repository"
+    echo "  bare start        # Start the dashboard"
     echo "  bare --help       # Show all commands"
     echo ""
 
@@ -62,7 +62,7 @@ if command -v bare &> /dev/null; then
     read -p "Start bare dashboard now? (y/n) " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        bare dev
+        bare start
     fi
 else
     echo -e "${RED}✗ Installation failed${CT}"
