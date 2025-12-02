@@ -389,26 +389,41 @@ export async function removeWorktree(
   worktreeName: string
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    const git = spawn("git", ["worktree", "remove", worktreeName, "--force"], {
+    // Step 1: Remove the worktree
+    const removeWt = spawn("git", ["worktree", "remove", worktreeName, "--force"], {
       cwd: repoPath,
     });
 
-    git.on("exit", (code) => {
+    removeWt.on("exit", (code) => {
       if (code === 0) {
-        resolve();
+        // Step 2: Delete the branch
+        const deleteBranch = spawn("git", ["branch", "-D", worktreeName], {
+          cwd: repoPath,
+        });
+
+        deleteBranch.on("exit", (branchCode) => {
+          // Ignore branch deletion errors (branch might not exist or might be checked out elsewhere)
+          // The important part is that the worktree is removed
+          resolve();
+        });
+
+        deleteBranch.on("error", () => {
+          // Ignore branch deletion errors
+          resolve();
+        });
       } else {
         reject(new Error(`Failed to remove worktree: exit code ${code}`));
       }
     });
 
-    git.stderr?.on("data", (data) => {
+    removeWt.stderr?.on("data", (data) => {
       const message = data.toString();
       if (message.toLowerCase().includes("fatal")) {
         reject(new Error(message));
       }
     });
 
-    git.on("error", reject);
+    removeWt.on("error", reject);
   });
 }
 
