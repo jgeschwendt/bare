@@ -2,6 +2,7 @@
 
 import type { Repository } from "@/lib/types";
 import { WorktreeList } from "./worktree-list";
+import { WorktreeConfigComponent } from "./worktree-config";
 
 interface RepositoryCardProps {
   repository: Repository;
@@ -24,6 +25,7 @@ export function RepositoryCard({ repository, onDelete }: RepositoryCardProps) {
             </span>
           )}
 
+          <WorktreeConfigComponent repoPath={repository.path} />
           <WorktreeList repoPath={repository.path} />
         </div>
         <div className="flex gap-2">

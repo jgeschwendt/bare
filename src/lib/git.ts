@@ -1,8 +1,9 @@
 import { spawn } from "child_process";
-import { mkdir, access, readFile } from "fs/promises";
-import { join } from "path";
+import { mkdir, access, readFile, symlink, copyFile, readdir, stat, rm } from "fs/promises";
+import { join, basename } from "path";
 import { homedir } from "os";
 import { detectPackageManager, type PackageManager } from "./detect";
+import { readWorktreeConfig } from "./worktree-config";
 
 function extractGitHubUsername(url: string): string {
   // Handle SSH format: git@github.com:username/repo.git
@@ -425,6 +426,88 @@ export async function removeWorktree(
 
     removeWt.on("error", reject);
   });
+}
+
+async function copyRecursive(src: string, dest: string): Promise<void> {
+  const srcStat = await stat(src);
+
+  if (srcStat.isDirectory()) {
+    await mkdir(dest, { recursive: true });
+    const entries = await readdir(src, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const srcPath = join(src, entry.name);
+      const destPath = join(dest, entry.name);
+
+      if (entry.isDirectory()) {
+        await copyRecursive(srcPath, destPath);
+      } else {
+        await copyFile(srcPath, destPath);
+      }
+    }
+  } else {
+    await copyFile(src, dest);
+  }
+}
+
+export async function setupWorktreeFiles(
+  repoPath: string,
+  worktreeName: string
+): Promise<void> {
+  const config = await readWorktreeConfig(repoPath);
+  const mainPath = join(repoPath, "__main__");
+  const worktreePath = join(repoPath, worktreeName);
+
+  // Process symlinks
+  if (config.symlink && config.symlink.length > 0) {
+    for (const pattern of config.symlink) {
+      const sourcePath = join(mainPath, pattern);
+      const targetPath = join(worktreePath, pattern);
+
+      try {
+        await access(sourcePath);
+        // Remove target if it exists
+        try {
+          await access(targetPath);
+          await rm(targetPath, { recursive: true, force: true });
+        } catch {
+          // Target doesn't exist, that's fine
+        }
+
+        // Create parent directory if needed
+        const targetDir = join(targetPath, "..");
+        await mkdir(targetDir, { recursive: true });
+
+        // Create symlink
+        await symlink(sourcePath, targetPath);
+      } catch (err) {
+        // File doesn't exist in __main__, skip
+        console.warn(`Symlink skipped (source not found): ${pattern}`);
+      }
+    }
+  }
+
+  // Process copies
+  if (config.copy && config.copy.length > 0) {
+    for (const pattern of config.copy) {
+      const sourcePath = join(mainPath, pattern);
+      const targetPath = join(worktreePath, pattern);
+
+      try {
+        await access(sourcePath);
+
+        // Create parent directory if needed
+        const targetDir = join(targetPath, "..");
+        await mkdir(targetDir, { recursive: true });
+
+        // Copy file or directory
+        await copyRecursive(sourcePath, targetPath);
+      } catch (err) {
+        // File doesn't exist in __main__, skip
+        console.warn(`Copy skipped (source not found): ${pattern}`);
+      }
+    }
+  }
 }
 
 export async function installWorktreeDependencies(

@@ -7,6 +7,7 @@ import {
   updateMainWorktree,
   installDependencies,
   installWorktreeDependencies,
+  setupWorktreeFiles,
 } from "@/lib/git";
 import { log } from "@/lib/logger";
 
@@ -95,7 +96,14 @@ export async function POST(request: NextRequest) {
           sendTimed(`✓ Worktree created at ${path}`);
           await delay(300);
 
-          // Step 4: Copy node_modules and install deltas
+          // Step 4: Setup symlinks and copies from .bare.json config
+          send("Setting up config files (symlinks/copies)...");
+          await setupWorktreeFiles(repoPath, worktreeName);
+          await delay(300);
+          sendTimed("✓ Config files setup complete");
+          await delay(300);
+
+          // Step 5: Copy node_modules and install deltas
           send("Copying node_modules with hardlinks...");
           await installWorktreeDependencies(repoPath, worktreeName);
           await delay(300);
