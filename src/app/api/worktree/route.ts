@@ -103,8 +103,8 @@ export async function POST(request: NextRequest) {
           sendTimed("✓ Config files setup complete");
           await delay(300);
 
-          // Step 5: Copy node_modules and install deltas
-          send("Copying node_modules with hardlinks...");
+          // Step 5: Install dependencies from warm store
+          send("Installing dependencies from warm store...");
           await installWorktreeDependencies(repoPath, worktreeName);
           await delay(300);
           sendTimed("✓ Dependencies installed in worktree");

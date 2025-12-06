@@ -514,83 +514,23 @@ export async function installWorktreeDependencies(
   repoPath: string,
   worktreeName: string
 ): Promise<void> {
-  const mainPath = join(repoPath, "__main__");
   const worktreePath = join(repoPath, worktreeName);
-  const mainNodeModules = join(mainPath, "node_modules");
-  const worktreeNodeModules = join(worktreePath, "node_modules");
 
   // Detect package manager
   const packageManager = await detectPackageManager(repoPath);
 
-  // Check if __main__ has node_modules
-  try {
-    await access(mainNodeModules);
-  } catch {
-    // No node_modules in __main__, just run install in worktree
-    return new Promise((resolve, reject) => {
-      const install = spawn(packageManager, ["install"], { cwd: worktreePath });
-
-      install.on("exit", (code) => {
-        if (code === 0) {
-          resolve();
-        } else {
-          reject(new Error(`Failed to install dependencies in worktree: exit code ${code}`));
-        }
-      });
-
-      install.on("error", reject);
-    });
-  }
-
-  // Copy node_modules from __main__ using hardlinks
+  // Just do a fresh install from warm store (for timing comparison)
   return new Promise((resolve, reject) => {
-    const copy = spawn("cp", ["-al", mainNodeModules, worktreeNodeModules], {
-      cwd: repoPath,
-    });
+    const install = spawn(packageManager, ["install"], { cwd: worktreePath });
 
-    copy.on("exit", async (copyCode) => {
-      if (copyCode === 0) {
-        // Run install in worktree to catch any deltas
-        const install = spawn(packageManager, ["install"], { cwd: worktreePath });
-
-        install.on("exit", (installCode) => {
-          if (installCode === 0) {
-            resolve();
-          } else {
-            reject(new Error(`Failed to install delta dependencies: exit code ${installCode}`));
-          }
-        });
-
-        install.on("error", reject);
+    install.on("exit", (code) => {
+      if (code === 0) {
+        resolve();
       } else {
-        // If copy failed, try regular install
-        const install = spawn(packageManager, ["install"], { cwd: worktreePath });
-
-        install.on("exit", (installCode) => {
-          if (installCode === 0) {
-            resolve();
-          } else {
-            reject(new Error(`Failed to install dependencies in worktree: exit code ${installCode}`));
-          }
-        });
-
-        install.on("error", reject);
+        reject(new Error(`Failed to install dependencies in worktree: exit code ${code}`));
       }
     });
 
-    copy.on("error", async () => {
-      // If copy command fails, fall back to regular install
-      const install = spawn(packageManager, ["install"], { cwd: worktreePath });
-
-      install.on("exit", (installCode) => {
-        if (installCode === 0) {
-          resolve();
-        } else {
-          reject(new Error(`Failed to install dependencies in worktree: exit code ${installCode}`));
-        }
-      });
-
-      install.on("error", reject);
-    });
+    install.on("error", reject);
   });
 }
