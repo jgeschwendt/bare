@@ -13,6 +13,8 @@ interface RepositoryCardProps {
 
 export function RepositoryCard({ repository, onDelete }: RepositoryCardProps) {
   const [error, setError] = useState<string | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateProgress, setUpdateProgress] = useState<string[]>([]);
 
   const handleOpen = async (app: "vscode" | "terminal") => {
     setError(null);
@@ -29,6 +31,57 @@ export function RepositoryCard({ repository, onDelete }: RepositoryCardProps) {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : `Failed to open in ${app}`);
+    }
+  };
+
+  const handleUpdateMain = async () => {
+    setError(null);
+    setUpdateProgress([]);
+    setIsUpdating(true);
+
+    try {
+      const response = await fetch("/api/update-main", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repoPath: repository.path }),
+      });
+
+      if (!response.ok || !response.body) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to update __main__");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6);
+            if (data === "[DONE]") {
+              setIsUpdating(false);
+              // Clear progress after a delay
+              setTimeout(() => {
+                setUpdateProgress([]);
+              }, 3000);
+            } else if (data.startsWith("ERROR: ")) {
+              setError(data.slice(7));
+              setIsUpdating(false);
+            } else {
+              setUpdateProgress((prev) => [...prev, data]);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update __main__");
+      setIsUpdating(false);
     }
   };
 
@@ -52,6 +105,14 @@ export function RepositoryCard({ repository, onDelete }: RepositoryCardProps) {
             >
               Terminal
             </button>
+            <button
+              onClick={handleUpdateMain}
+              disabled={isUpdating}
+              className="px-2 py-0.5 text-xs text-purple-600 hover:bg-purple-50 rounded disabled:bg-gray-100 disabled:text-gray-400"
+              title="Pull latest changes and install dependencies in __main__"
+            >
+              {isUpdating ? "Updating..." : "Update & Install"}
+            </button>
           </div>
           <p className="text-sm text-gray-600">{repository.path}</p>
           {repository.remoteUrl && (
@@ -65,6 +126,16 @@ export function RepositoryCard({ repository, onDelete }: RepositoryCardProps) {
           {error && (
             <div className="mt-2 p-2 bg-red-50 text-red-700 text-xs rounded">
               {error}
+            </div>
+          )}
+
+          {updateProgress.length > 0 && (
+            <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
+              <div className="text-xs font-mono space-y-0.5 text-gray-700">
+                {updateProgress.slice(-5).map((line, i) => (
+                  <div key={i}>{line}</div>
+                ))}
+              </div>
             </div>
           )}
 
