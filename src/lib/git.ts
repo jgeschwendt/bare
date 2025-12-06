@@ -271,12 +271,92 @@ export async function listBranches(repoPath: string): Promise<string[]> {
   });
 }
 
-export async function updateMainWorktree(repoPath: string): Promise<void> {
+export interface Remote {
+  name: string;
+  url: string;
+}
+
+export async function listRemotes(repoPath: string): Promise<Remote[]> {
+  return new Promise((resolve, reject) => {
+    const git = spawn("git", ["remote", "-v"], { cwd: repoPath });
+    let output = "";
+
+    git.stdout?.on("data", (data) => {
+      output += data.toString();
+    });
+
+    git.on("exit", (code) => {
+      if (code === 0) {
+        const remotes: Remote[] = [];
+        const lines = output.split("\n").filter((l) => l.trim().length > 0);
+
+        // Parse output: "origin  https://... (fetch)"
+        const seen = new Set<string>();
+        for (const line of lines) {
+          const match = line.match(/^(\S+)\s+(\S+)\s+\(fetch\)/);
+          if (match && !seen.has(match[1])) {
+            seen.add(match[1]);
+            remotes.push({ name: match[1], url: match[2] });
+          }
+        }
+
+        resolve(remotes);
+      } else {
+        reject(new Error(`Failed to list remotes: exit code ${code}`));
+      }
+    });
+
+    git.on("error", reject);
+  });
+}
+
+export async function addRemote(
+  repoPath: string,
+  name: string,
+  url: string
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const git = spawn("git", ["remote", "add", name, url], { cwd: repoPath });
+
+    git.on("exit", (code) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`Failed to add remote: exit code ${code}`));
+      }
+    });
+
+    git.on("error", reject);
+  });
+}
+
+export async function removeRemote(repoPath: string, name: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const git = spawn("git", ["remote", "remove", name], { cwd: repoPath });
+
+    git.on("exit", (code) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`Failed to remove remote: exit code ${code}`));
+      }
+    });
+
+    git.on("error", reject);
+  });
+}
+
+export async function updateMainWorktree(
+  repoPath: string,
+  upstreamRemote: string = "origin"
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const mainPath = join(repoPath, "__main__");
 
-    // Pull latest changes from origin/main explicitly
-    const pull = spawn("git", ["pull", "origin", "main"], { cwd: mainPath });
+    // Pull latest changes from upstream/main
+    const pull = spawn("git", ["pull", upstreamRemote, "main"], {
+      cwd: mainPath,
+    });
     let stdout = "";
     let stderr = "";
 
@@ -340,7 +420,8 @@ export async function installDependencies(
 export async function addWorktree(
   repoPath: string,
   worktreeName: string,
-  branch?: string
+  branch?: string,
+  upstreamRemote: string = "origin"
 ): Promise<string> {
   return new Promise(async (resolve, reject) => {
     let args: string[];
@@ -352,15 +433,18 @@ export async function addWorktree(
       // Check if branch already exists
       const branches = await listBranches(repoPath);
       const branchExists = branches.some(
-        (b) => b === worktreeName || b === `origin/${worktreeName}`
+        (b) => b === worktreeName || b === `${upstreamRemote}/${worktreeName}`
       );
 
+      // Base branch from upstream remote
+      const baseBranch = `${upstreamRemote}/main`;
+
       if (branchExists) {
-        // Branch exists, use -B to force create/reset it from main
-        args = ["worktree", "add", "-B", worktreeName, worktreeName, "main"];
+        // Branch exists, use -B to force create/reset it from upstream/main
+        args = ["worktree", "add", "-B", worktreeName, worktreeName, baseBranch];
       } else {
-        // Branch doesn't exist, create it
-        args = ["worktree", "add", "-b", worktreeName, worktreeName, "main"];
+        // Branch doesn't exist, create it from upstream/main
+        args = ["worktree", "add", "-b", worktreeName, worktreeName, baseBranch];
       }
     }
 

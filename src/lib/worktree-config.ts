@@ -8,6 +8,7 @@ const CONFIG_FILE = join(CONFIG_DIR, "worktree-config.json");
 export interface WorktreeConfig {
   symlink?: string[];
   copy?: string[];
+  upstreamRemote?: string; // The remote to use as base for worktrees (default: "origin")
 }
 
 interface ConfigStore {

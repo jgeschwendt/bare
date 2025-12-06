@@ -10,6 +10,7 @@ import {
   setupWorktreeFiles,
 } from "@/lib/git";
 import { log } from "@/lib/logger";
+import { readWorktreeConfig } from "@/lib/worktree-config";
 
 export async function GET(request: NextRequest) {
   try {
@@ -73,11 +74,15 @@ export async function POST(request: NextRequest) {
         const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
         try {
+          // Get config to determine upstream remote
+          const config = await readWorktreeConfig(repoPath);
+          const upstreamRemote = config.upstreamRemote || "origin";
+
           // Step 1: Update __main__ worktree
-          send("Updating __main__ worktree...");
+          send(`Updating __main__ from ${upstreamRemote}/main...`);
           log(`[WORKTREE] Starting worktree creation: ${repoPath}/${worktreeName}`);
           lastStepTime = Date.now();
-          await updateMainWorktree(repoPath);
+          await updateMainWorktree(repoPath, upstreamRemote);
           await delay(300);
           sendTimed("✓ __main__ updated");
           await delay(300);
@@ -90,8 +95,8 @@ export async function POST(request: NextRequest) {
           await delay(300);
 
           // Step 3: Create new worktree
-          send(`Creating worktree ${worktreeName}...`);
-          const path = await addWorktree(repoPath, worktreeName, branch);
+          send(`Creating worktree from ${upstreamRemote}/main...`);
+          const path = await addWorktree(repoPath, worktreeName, branch, upstreamRemote);
           await delay(300);
           sendTimed(`✓ Worktree created at ${path}`);
           await delay(300);
