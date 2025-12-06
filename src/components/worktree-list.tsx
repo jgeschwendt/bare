@@ -9,14 +9,20 @@ interface WorktreeListProps {
   onRefresh?: () => void;
 }
 
+interface CreatingWorktree {
+  name: string;
+  progress: string[];
+  error: string | null;
+  isComplete: boolean;
+}
+
 export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
   const [worktrees, setWorktrees] = useState<Worktree[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAddingWorktree, setIsAddingWorktree] = useState(false);
   const [worktreeName, setWorktreeName] = useState("");
-  const [isCreating, setIsCreating] = useState(false);
-  const [progress, setProgress] = useState<string[]>([]);
+  const [creatingWorktrees, setCreatingWorktrees] = useState<CreatingWorktree[]>([]);
 
   const fetchWorktrees = async () => {
     setIsLoading(true);
@@ -42,16 +48,33 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
   const handleAddWorktree = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setProgress([]);
-    setIsCreating(true);
 
+    const name = worktreeName.trim();
+    if (!name) return;
+
+    // Add to creating list
+    const newCreating: CreatingWorktree = {
+      name,
+      progress: [],
+      error: null,
+      isComplete: false,
+    };
+
+    setCreatingWorktrees((prev) => [...prev, newCreating]);
+    setWorktreeName("");
+
+    // Start creation in background
+    createWorktree(name);
+  };
+
+  const createWorktree = async (name: string) => {
     try {
       const response = await fetch("/api/worktree", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           repoPath,
-          worktreeName,
+          worktreeName: name,
         }),
       });
 
@@ -74,31 +97,62 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
           if (line.startsWith("data: ")) {
             const data = line.slice(6);
             if (data === "[DONE]") {
-              setIsCreating(false);
+              setCreatingWorktrees((prev) =>
+                prev.map((w) =>
+                  w.name === name ? { ...w, isComplete: true } : w
+                )
+              );
               await fetchWorktrees();
-              setIsAddingWorktree(false);
-              setWorktreeName("");
-              setProgress([]);
               onRefresh?.();
+              // Remove from creating list after a delay
+              setTimeout(() => {
+                setCreatingWorktrees((prev) => prev.filter((w) => w.name !== name));
+              }, 2000);
             } else if (data.startsWith("ERROR: ")) {
-              setError(data.slice(7));
-              setIsCreating(false);
+              setCreatingWorktrees((prev) =>
+                prev.map((w) =>
+                  w.name === name
+                    ? { ...w, error: data.slice(7), isComplete: true }
+                    : w
+                )
+              );
             } else {
-              setProgress((prev) => [...prev, data]);
+              setCreatingWorktrees((prev) =>
+                prev.map((w) =>
+                  w.name === name ? { ...w, progress: [...w.progress, data] } : w
+                )
+              );
             }
           }
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add worktree");
-      setIsCreating(false);
+      setCreatingWorktrees((prev) =>
+        prev.map((w) =>
+          w.name === name
+            ? {
+                ...w,
+                error: err instanceof Error ? err.message : "Failed to add worktree",
+                isComplete: true,
+              }
+            : w
+        )
+      );
     }
   };
 
   const handleRemoveWorktree = async (worktreePath: string) => {
     const worktreeName = basename(worktreePath);
 
-    if (!confirm(`Remove worktree "${worktreeName}"?`)) return;
+    const confirmed = confirm(`Remove worktree "${worktreeName}"?`);
+    console.log("Remove worktree confirmation:", confirmed);
+
+    if (!confirmed) {
+      console.log("User cancelled removal");
+      return;
+    }
+
+    console.log("Proceeding with worktree removal");
 
     try {
       const response = await fetch(
@@ -185,46 +239,76 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
                 onChange={(e) => setWorktreeName(e.target.value)}
                 placeholder="feature-xyz"
                 className="w-full px-2 py-1 text-sm border rounded focus:ring-2 focus:ring-blue-500"
-                disabled={isCreating}
+                autoFocus
               />
               <p className="text-xs text-gray-500 mt-1">
-                Updates main, installs deps, creates new branch from main,
-                copies node_modules (fast with hardlinks)
+                You can create multiple worktrees simultaneously
               </p>
             </div>
-
-            {isCreating && progress.length > 0 && (
-              <div className="p-2 bg-white border rounded text-xs font-mono">
-                {progress.map((line, i) => (
-                  <div key={i} className="text-gray-700">
-                    {line}
-                  </div>
-                ))}
-              </div>
-            )}
 
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => {
                   setIsAddingWorktree(false);
-                  setProgress([]);
+                  setWorktreeName("");
                 }}
                 className="flex-1 px-2 py-1 text-sm border rounded hover:bg-gray-50"
-                disabled={isCreating}
               >
-                Cancel
+                Done
               </button>
               <button
                 type="submit"
-                className="flex-1 px-2 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
-                disabled={isCreating}
+                className="flex-1 px-2 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
               >
-                {isCreating ? "Creating..." : "Add"}
+                Add
               </button>
             </div>
           </div>
         </form>
+      )}
+
+      {/* Show creating worktrees */}
+      {creatingWorktrees.length > 0 && (
+        <div className="mb-3 space-y-2">
+          {creatingWorktrees.map((creating) => (
+            <div
+              key={creating.name}
+              className={`p-3 rounded border ${
+                creating.error
+                  ? "bg-red-50 border-red-200"
+                  : creating.isComplete
+                  ? "bg-green-50 border-green-200"
+                  : "bg-blue-50 border-blue-200"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="font-medium text-sm">{creating.name}</div>
+                <div className="text-xs text-gray-600">
+                  {creating.error ? (
+                    <span className="text-red-600">Failed</span>
+                  ) : creating.isComplete ? (
+                    <span className="text-green-600">✓ Complete</span>
+                  ) : (
+                    <span className="text-blue-600">Creating...</span>
+                  )}
+                </div>
+              </div>
+
+              {creating.error && (
+                <div className="text-xs text-red-700 mb-2">{creating.error}</div>
+              )}
+
+              {creating.progress.length > 0 && !creating.error && (
+                <div className="text-xs font-mono space-y-0.5 text-gray-700">
+                  {creating.progress.slice(-3).map((line, i) => (
+                    <div key={i}>{line}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       )}
 
       <div className="space-y-1">
