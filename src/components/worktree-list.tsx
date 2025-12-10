@@ -23,6 +23,8 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
   const [isAddingWorktree, setIsAddingWorktree] = useState(false);
   const [worktreeName, setWorktreeName] = useState("");
   const [creatingWorktrees, setCreatingWorktrees] = useState<CreatingWorktree[]>([]);
+  const [selectedWorktrees, setSelectedWorktrees] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchWorktrees = async () => {
     setIsLoading(true);
@@ -96,7 +98,11 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
         for (const line of lines) {
           if (line.startsWith("data: ")) {
             const data = line.slice(6);
-            if (data === "[DONE]") {
+            if (data === "[WORKTREE_CREATED]") {
+              // Worktree is created and can be interacted with
+              await fetchWorktrees();
+              onRefresh?.();
+            } else if (data === "[DONE]") {
               setCreatingWorktrees((prev) =>
                 prev.map((w) =>
                   w.name === name ? { ...w, isComplete: true } : w
@@ -141,39 +147,89 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
     }
   };
 
-  const handleRemoveWorktree = async (worktreePath: string) => {
+  const toggleWorktreeSelection = (worktreePath: string) => {
+    setSelectedWorktrees((prev) => {
+      const next = new Set(prev);
+      if (next.has(worktreePath)) {
+        next.delete(worktreePath);
+      } else {
+        next.add(worktreePath);
+      }
+      return next;
+    });
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedWorktrees.size === 0) return;
+
+    const confirmed = confirm(
+      `Remove ${selectedWorktrees.size} worktree${selectedWorktrees.size > 1 ? "s" : ""}?`
+    );
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    setError(null);
+
+    // Run deletion in background
+    (async () => {
+      try {
+        for (const worktreePath of selectedWorktrees) {
+          const worktreeName = basename(worktreePath);
+          const response = await fetch(
+            `/api/worktree?repoPath=${encodeURIComponent(
+              repoPath
+            )}&worktreeName=${encodeURIComponent(worktreeName)}`,
+            { method: "DELETE" }
+          );
+
+          if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || `Failed to remove ${worktreeName}`);
+          }
+        }
+
+        setSelectedWorktrees(new Set());
+        await fetchWorktrees();
+        onRefresh?.();
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Failed to remove worktrees"
+        );
+      } finally {
+        setIsDeleting(false);
+      }
+    })();
+  };
+
+  const handleRemoveWorktree = (worktreePath: string) => {
     const worktreeName = basename(worktreePath);
 
     const confirmed = confirm(`Remove worktree "${worktreeName}"?`);
-    console.log("Remove worktree confirmation:", confirmed);
+    if (!confirmed) return;
 
-    if (!confirmed) {
-      console.log("User cancelled removal");
-      return;
-    }
+    // Run deletion in background
+    (async () => {
+      try {
+        const response = await fetch(
+          `/api/worktree?repoPath=${encodeURIComponent(
+            repoPath
+          )}&worktreeName=${encodeURIComponent(worktreeName)}`,
+          { method: "DELETE" }
+        );
 
-    console.log("Proceeding with worktree removal");
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || "Failed to remove worktree");
+        }
 
-    try {
-      const response = await fetch(
-        `/api/worktree?repoPath=${encodeURIComponent(
-          repoPath
-        )}&worktreeName=${encodeURIComponent(worktreeName)}`,
-        { method: "DELETE" }
-      );
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to remove worktree");
+        await fetchWorktrees();
+        onRefresh?.();
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Failed to remove worktree"
+        );
       }
-
-      await fetchWorktrees();
-      onRefresh?.();
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to remove worktree"
-      );
-    }
+    })();
   };
 
   const handleOpenAddDialog = () => {
@@ -200,6 +256,25 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
     }
   };
 
+  const handleOpenWithClaude = async (worktreePath: string) => {
+    try {
+      const response = await fetch("/api/open-with-claude", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: worktreePath }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to open with Claude");
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to open with Claude"
+      );
+    }
+  };
+
   if (isLoading) {
     return <div className="text-sm text-gray-500">Loading worktrees...</div>;
   }
@@ -208,12 +283,23 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
     <div className="mt-4">
       <div className="flex items-center justify-between mb-2">
         <h4 className="text-sm font-medium text-gray-700">Worktrees</h4>
-        <button
-          onClick={handleOpenAddDialog}
-          className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          + Add Worktree
-        </button>
+        <div className="flex gap-2">
+          {selectedWorktrees.size > 0 && (
+            <button
+              onClick={handleBulkDelete}
+              disabled={isDeleting}
+              className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+            >
+              {isDeleting ? "Deleting..." : `Delete ${selectedWorktrees.size}`}
+            </button>
+          )}
+          <button
+            onClick={handleOpenAddDialog}
+            className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            + Add Worktree
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -320,11 +406,12 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
             const branchName =
               wt.branch?.replace("refs/heads/", "") || "detached";
             const isProtected = wt.bare || name === "__main__";
+            const isSelected = selectedWorktrees.has(wt.path);
 
             return (
               <div
                 key={index}
-                className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm"
+                className="flex items-center gap-2 p-2 bg-gray-50 rounded text-sm"
               >
                 <div className="flex-1">
                   <div className="font-medium">{name}</div>
@@ -339,7 +426,14 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
                   </div>
                 </div>
                 {!isProtected && (
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 items-center">
+                    <button
+                      onClick={() => handleOpenWithClaude(wt.path)}
+                      className="px-2 py-1 text-xs text-purple-600 hover:bg-purple-50 rounded font-medium"
+                      title="Open in VS Code + Terminal with Claude"
+                    >
+                      Claude
+                    </button>
                     <button
                       onClick={() => handleOpen(wt.path, "vscode")}
                       className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded"
@@ -354,16 +448,23 @@ export function WorktreeList({ repoPath, onRefresh }: WorktreeListProps) {
                     >
                       Terminal
                     </button>
-                    <button
-                      onClick={() => handleRemoveWorktree(wt.path)}
-                      className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded"
-                    >
-                      Remove
-                    </button>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleWorktreeSelection(wt.path)}
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                    />
                   </div>
                 )}
                 {isProtected && name === "__main__" && (
                   <div className="flex gap-1">
+                    <button
+                      onClick={() => handleOpenWithClaude(wt.path)}
+                      className="px-2 py-1 text-xs text-purple-600 hover:bg-purple-50 rounded font-medium"
+                      title="Open in VS Code + Terminal with Claude"
+                    >
+                      Claude
+                    </button>
                     <button
                       onClick={() => handleOpen(wt.path, "vscode")}
                       className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded"

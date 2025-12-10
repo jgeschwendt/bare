@@ -99,6 +99,7 @@ export async function POST(request: NextRequest) {
           const path = await addWorktree(repoPath, worktreeName, branch, upstreamRemote);
           await delay(300);
           sendTimed(`✓ Worktree created at ${path}`);
+          send("[WORKTREE_CREATED]"); // Signal that worktree is now usable
           await delay(300);
 
           // Step 4: Setup symlinks and copies from .bare.json config
