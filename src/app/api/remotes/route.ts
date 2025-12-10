@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listRemotes, addRemote, removeRemote } from "@/lib/git";
+import { execa } from "execa";
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,9 +36,8 @@ export async function POST(request: NextRequest) {
 
     await addRemote(repoPath, name, url);
 
-    // Fetch from new remote
-    const { spawn } = await import("child_process");
-    spawn("git", ["fetch", name], { cwd: repoPath });
+    // Fetch from new remote (don't await - run in background)
+    execa("git", ["fetch", name], { cwd: repoPath });
 
     return NextResponse.json({ success: true });
   } catch (error) {

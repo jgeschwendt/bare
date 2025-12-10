@@ -1,5 +1,5 @@
-import { spawn } from "child_process";
-import { mkdir, access, readFile, symlink, copyFile, readdir, stat, rm } from "fs/promises";
+import { execa } from "execa";
+import { mkdir, access, readFile, symlink, copyFile, readdir, stat, rm, writeFile } from "fs/promises";
 import { join, basename } from "path";
 import { homedir } from "os";
 import { detectPackageManager, type PackageManager } from "./detect";
@@ -48,93 +48,44 @@ export async function cloneRepository(
   // Ensure target directory exists
   await mkdir(fullPath, { recursive: true });
 
-  return new Promise((resolve, reject) => {
-    const clone = spawn("git", ["clone", "--bare", url, ".bare"], {
-      cwd: fullPath,
-    });
+  // Clone the repository
+  const clone = execa("git", ["clone", "--bare", url, ".bare"], { cwd: fullPath });
 
-    clone.stdout?.on("data", (data) => {
-      const lines = data.toString().split("\n");
-      lines.forEach((line: string) => {
-        if (line.trim()) onProgress(line.trim());
-      });
-    });
-
-    clone.stderr?.on("data", (data) => {
-      const lines = data.toString().split("\n");
-      lines.forEach((line: string) => {
-        if (line.trim()) onProgress(line.trim());
-      });
-    });
-
-    clone.on("error", reject);
-
-    clone.on("exit", async (code) => {
-      if (code === 0) {
-        try {
-          // Create .git file pointing to .bare
-          const { writeFile } = await import("fs/promises");
-          await writeFile(join(fullPath, ".git"), "gitdir: ./.bare\n");
-          onProgress("Created .git file");
-
-          // Configure remote fetch for origin
-          const config = spawn(
-            "git",
-            [
-              "config",
-              "remote.origin.fetch",
-              "+refs/heads/*:refs/remotes/origin/*",
-            ],
-            { cwd: fullPath }
-          );
-
-          config.on("exit", async (configCode) => {
-            if (configCode === 0) {
-              onProgress("Configured remote fetch");
-
-              // Create main worktree
-              const worktree = spawn(
-                "git",
-                ["worktree", "add", "__main__", "main"],
-                {
-                  cwd: fullPath,
-                }
-              );
-
-              worktree.on("exit", (wtCode) => {
-                if (wtCode === 0) {
-                  onProgress("Created __main__ worktree");
-                  resolve(fullPath);
-                } else {
-                  // Try master if main doesn't exist
-                  const worktreeMaster = spawn(
-                    "git",
-                    ["worktree", "add", "__main__", "master"],
-                    { cwd: fullPath }
-                  );
-
-                  worktreeMaster.on("exit", (masterCode) => {
-                    if (masterCode === 0) {
-                      onProgress("Created __main__ worktree (master)");
-                      resolve(fullPath);
-                    } else {
-                      reject(new Error("Failed to create worktree"));
-                    }
-                  });
-                }
-              });
-            } else {
-              reject(new Error("Failed to configure git"));
-            }
-          });
-        } catch (error) {
-          reject(error);
-        }
-      } else {
-        reject(new Error(`Git clone failed with code ${code}`));
-      }
+  clone.stdout?.on("data", (data) => {
+    const lines = data.toString().split("\n");
+    lines.forEach((line: string) => {
+      if (line.trim()) onProgress(line.trim());
     });
   });
+
+  clone.stderr?.on("data", (data) => {
+    const lines = data.toString().split("\n");
+    lines.forEach((line: string) => {
+      if (line.trim()) onProgress(line.trim());
+    });
+  });
+
+  await clone;
+
+  // Create .git file pointing to .bare
+  await writeFile(join(fullPath, ".git"), "gitdir: ./.bare\n");
+  onProgress("Created .git file");
+
+  // Configure remote fetch for origin
+  await execa("git", ["config", "remote.origin.fetch", "+refs/heads/*:refs/remotes/origin/*"], { cwd: fullPath });
+  onProgress("Configured remote fetch");
+
+  // Create main worktree (try main first, fallback to master)
+  try {
+    await execa("git", ["worktree", "add", "__main__", "main"], { cwd: fullPath });
+    onProgress("Created __main__ worktree");
+  } catch {
+    // Try master if main doesn't exist
+    await execa("git", ["worktree", "add", "__main__", "master"], { cwd: fullPath });
+    onProgress("Created __main__ worktree (master)");
+  }
+
+  return fullPath;
 }
 
 export async function detectRepositoryType(
@@ -174,101 +125,56 @@ export async function detectRepositoryType(
 }
 
 export async function getRemoteUrl(path: string): Promise<string | undefined> {
-  return new Promise((resolve) => {
-    const git = spawn("git", ["remote", "get-url", "origin"], { cwd: path });
-    let url = "";
-
-    git.stdout?.on("data", (data) => {
-      url += data.toString();
-    });
-
-    git.on("exit", (code) => {
-      if (code === 0) {
-        resolve(url.trim());
-      } else {
-        resolve(undefined);
-      }
-    });
-  });
+  try {
+    const { stdout } = await execa("git", ["remote", "get-url", "origin"], { cwd: path });
+    return stdout;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function listWorktrees(
   repoPath: string
 ): Promise<import("./types").Worktree[]> {
-  return new Promise((resolve, reject) => {
-    const git = spawn("git", ["worktree", "list", "--porcelain"], {
-      cwd: repoPath,
-    });
-    let output = "";
+  const { stdout } = await execa("git", ["worktree", "list", "--porcelain"], { cwd: repoPath });
 
-    git.stdout?.on("data", (data) => {
-      output += data.toString();
-    });
+  const worktrees: import("./types").Worktree[] = [];
+  const entries = stdout.split("\n\n").filter(Boolean);
 
-    git.on("exit", (code) => {
-      if (code === 0) {
-        const worktrees: import("./types").Worktree[] = [];
-        const entries = output.split("\n\n").filter(Boolean);
+  for (const entry of entries) {
+    const lines = entry.split("\n");
+    const worktree: Partial<import("./types").Worktree> = {};
 
-        for (const entry of entries) {
-          const lines = entry.split("\n");
-          const worktree: Partial<import("./types").Worktree> = {};
-
-          for (const line of lines) {
-            if (line.startsWith("worktree ")) {
-              worktree.path = line.slice(9);
-            } else if (line.startsWith("HEAD ")) {
-              worktree.head = line.slice(5);
-            } else if (line.startsWith("branch ")) {
-              worktree.branch = line.slice(7);
-            } else if (line === "bare") {
-              worktree.bare = true;
-            } else if (line === "detached") {
-              worktree.detached = true;
-            }
-          }
-
-          if (worktree.path) {
-            worktrees.push(worktree as import("./types").Worktree);
-          }
-        }
-
-        resolve(worktrees);
-      } else {
-        reject(new Error(`Failed to list worktrees: exit code ${code}`));
+    for (const line of lines) {
+      if (line.startsWith("worktree ")) {
+        worktree.path = line.slice(9);
+      } else if (line.startsWith("HEAD ")) {
+        worktree.head = line.slice(5);
+      } else if (line.startsWith("branch ")) {
+        worktree.branch = line.slice(7);
+      } else if (line === "bare") {
+        worktree.bare = true;
+      } else if (line === "detached") {
+        worktree.detached = true;
       }
-    });
+    }
 
-    git.on("error", reject);
-  });
+    if (worktree.path) {
+      worktrees.push(worktree as import("./types").Worktree);
+    }
+  }
+
+  return worktrees;
 }
 
 export async function listBranches(repoPath: string): Promise<string[]> {
-  return new Promise((resolve, reject) => {
-    const git = spawn("git", ["branch", "-a", "--format=%(refname:short)"], {
-      cwd: repoPath,
-    });
-    let output = "";
+  const { stdout } = await execa("git", ["branch", "-a", "--format=%(refname:short)"], { cwd: repoPath });
 
-    git.stdout?.on("data", (data) => {
-      output += data.toString();
-    });
-
-    git.on("exit", (code) => {
-      if (code === 0) {
-        const branches = output
-          .split("\n")
-          .filter(Boolean)
-          .map((b) => b.trim())
-          .filter((b) => !b.startsWith("origin/HEAD"));
-        resolve(branches);
-      } else {
-        reject(new Error(`Failed to list branches: exit code ${code}`));
-      }
-    });
-
-    git.on("error", reject);
-  });
+  return stdout
+    .split("\n")
+    .filter(Boolean)
+    .map((b) => b.trim())
+    .filter((b) => !b.startsWith("origin/HEAD"));
 }
 
 export interface Remote {
@@ -277,37 +183,22 @@ export interface Remote {
 }
 
 export async function listRemotes(repoPath: string): Promise<Remote[]> {
-  return new Promise((resolve, reject) => {
-    const git = spawn("git", ["remote", "-v"], { cwd: repoPath });
-    let output = "";
+  const { stdout } = await execa("git", ["remote", "-v"], { cwd: repoPath });
 
-    git.stdout?.on("data", (data) => {
-      output += data.toString();
-    });
+  const remotes: Remote[] = [];
+  const lines = stdout.split("\n").filter((l) => l.trim().length > 0);
 
-    git.on("exit", (code) => {
-      if (code === 0) {
-        const remotes: Remote[] = [];
-        const lines = output.split("\n").filter((l) => l.trim().length > 0);
+  // Parse output: "origin  https://... (fetch)"
+  const seen = new Set<string>();
+  for (const line of lines) {
+    const match = line.match(/^(\S+)\s+(\S+)\s+\(fetch\)/);
+    if (match && !seen.has(match[1])) {
+      seen.add(match[1]);
+      remotes.push({ name: match[1], url: match[2] });
+    }
+  }
 
-        // Parse output: "origin  https://... (fetch)"
-        const seen = new Set<string>();
-        for (const line of lines) {
-          const match = line.match(/^(\S+)\s+(\S+)\s+\(fetch\)/);
-          if (match && !seen.has(match[1])) {
-            seen.add(match[1]);
-            remotes.push({ name: match[1], url: match[2] });
-          }
-        }
-
-        resolve(remotes);
-      } else {
-        reject(new Error(`Failed to list remotes: exit code ${code}`));
-      }
-    });
-
-    git.on("error", reject);
-  });
+  return remotes;
 }
 
 export async function addRemote(
@@ -315,106 +206,45 @@ export async function addRemote(
   name: string,
   url: string
 ): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const git = spawn("git", ["remote", "add", name, url], { cwd: repoPath });
-
-    git.on("exit", (code) => {
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(new Error(`Failed to add remote: exit code ${code}`));
-      }
-    });
-
-    git.on("error", reject);
-  });
+  await execa("git", ["remote", "add", name, url], { cwd: repoPath });
 }
 
 export async function removeRemote(repoPath: string, name: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const git = spawn("git", ["remote", "remove", name], { cwd: repoPath });
-
-    git.on("exit", (code) => {
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(new Error(`Failed to remove remote: exit code ${code}`));
-      }
-    });
-
-    git.on("error", reject);
-  });
+  await execa("git", ["remote", "remove", name], { cwd: repoPath });
 }
 
 export async function updateMainWorktree(
   repoPath: string,
   upstreamRemote: string = "origin"
 ): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const mainPath = join(repoPath, "__main__");
+  const mainPath = join(repoPath, "__main__");
 
-    // Pull latest changes from upstream/main
-    const pull = spawn("git", ["pull", upstreamRemote, "main"], {
-      cwd: mainPath,
-    });
-    let stdout = "";
-    let stderr = "";
+  try {
+    await execa("git", ["pull", upstreamRemote, "main"], { cwd: mainPath });
+  } catch (error: any) {
+    // Exit code 1 with "Already up to date" is fine
+    const output = error.stdout + error.stderr;
+    const isAlreadyUpToDate =
+      output.includes("Already up to date") ||
+      output.includes("Already up-to-date");
 
-    pull.stdout?.on("data", (data) => {
-      stdout += data.toString();
-    });
-
-    pull.stderr?.on("data", (data) => {
-      stderr += data.toString();
-    });
-
-    pull.on("exit", (code) => {
-      const output = stdout + stderr;
-
-      // Exit code 1 with "Already up to date" is fine
-      const isAlreadyUpToDate =
-        output.includes("Already up to date") ||
-        output.includes("Already up-to-date");
-
-      if (code === 0 || isAlreadyUpToDate) {
-        resolve();
-      } else {
-        // Provide more helpful error message
-        const errorMsg =
-          stderr.trim() ||
-          stdout.trim() ||
-          `Failed to pull in __main__: exit code ${code}`;
-        reject(new Error(errorMsg));
-      }
-    });
-
-    pull.on("error", reject);
-  });
+    if (!isAlreadyUpToDate) {
+      throw new Error(error.stderr || error.stdout || error.message);
+    }
+  }
 }
 
 export async function installDependencies(
   repoPath: string,
   packageManager?: PackageManager
 ): Promise<void> {
-  return new Promise(async (resolve, reject) => {
-    const mainPath = join(repoPath, "__main__");
+  const mainPath = join(repoPath, "__main__");
 
-    // Detect package manager if not provided
-    const pm = packageManager || (await detectPackageManager(repoPath));
+  // Detect package manager if not provided
+  const pm = packageManager || (await detectPackageManager(repoPath));
 
-    // Install dependencies
-    const install = spawn(pm, ["install"], { cwd: mainPath });
-
-    install.on("exit", (code) => {
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(new Error(`Failed to install dependencies: exit code ${code}`));
-      }
-    });
-
-    install.on("error", reject);
-  });
+  // Install dependencies
+  await execa(pm, ["install"], { cwd: mainPath });
 }
 
 export async function addWorktree(
@@ -423,93 +253,47 @@ export async function addWorktree(
   branch?: string,
   upstreamRemote: string = "origin"
 ): Promise<string> {
-  return new Promise(async (resolve, reject) => {
-    let args: string[];
+  let args: string[];
 
-    if (branch) {
-      // Use specified branch
-      args = ["worktree", "add", worktreeName, branch];
+  if (branch) {
+    // Use specified branch
+    args = ["worktree", "add", worktreeName, branch];
+  } else {
+    // Check if branch already exists
+    const branches = await listBranches(repoPath);
+    const branchExists = branches.some(
+      (b) => b === worktreeName || b === `${upstreamRemote}/${worktreeName}`
+    );
+
+    // Base branch from upstream remote
+    const baseBranch = `${upstreamRemote}/main`;
+
+    if (branchExists) {
+      // Branch exists, use -B to force create/reset it from upstream/main
+      args = ["worktree", "add", "-B", worktreeName, worktreeName, baseBranch];
     } else {
-      // Check if branch already exists
-      const branches = await listBranches(repoPath);
-      const branchExists = branches.some(
-        (b) => b === worktreeName || b === `${upstreamRemote}/${worktreeName}`
-      );
-
-      // Base branch from upstream remote
-      const baseBranch = `${upstreamRemote}/main`;
-
-      if (branchExists) {
-        // Branch exists, use -B to force create/reset it from upstream/main
-        args = ["worktree", "add", "-B", worktreeName, worktreeName, baseBranch];
-      } else {
-        // Branch doesn't exist, create it from upstream/main
-        args = ["worktree", "add", "-b", worktreeName, worktreeName, baseBranch];
-      }
+      // Branch doesn't exist, create it from upstream/main
+      args = ["worktree", "add", "-b", worktreeName, worktreeName, baseBranch];
     }
+  }
 
-    const git = spawn("git", args, { cwd: repoPath });
-
-    git.on("exit", (code) => {
-      if (code === 0) {
-        resolve(join(repoPath, worktreeName));
-      } else {
-        reject(new Error(`Failed to add worktree: exit code ${code}`));
-      }
-    });
-
-    git.stderr?.on("data", (data) => {
-      const message = data.toString();
-      if (message.toLowerCase().includes("fatal")) {
-        reject(new Error(message));
-      }
-    });
-
-    git.on("error", reject);
-  });
+  await execa("git", args, { cwd: repoPath });
+  return join(repoPath, worktreeName);
 }
 
 export async function removeWorktree(
   repoPath: string,
   worktreeName: string
 ): Promise<void> {
-  return new Promise((resolve, reject) => {
-    // Step 1: Remove the worktree
-    const removeWt = spawn("git", ["worktree", "remove", worktreeName, "--force"], {
-      cwd: repoPath,
-    });
+  // Step 1: Remove the worktree
+  await execa("git", ["worktree", "remove", worktreeName, "--force"], { cwd: repoPath });
 
-    removeWt.on("exit", (code) => {
-      if (code === 0) {
-        // Step 2: Delete the branch
-        const deleteBranch = spawn("git", ["branch", "-D", worktreeName], {
-          cwd: repoPath,
-        });
-
-        deleteBranch.on("exit", (branchCode) => {
-          // Ignore branch deletion errors (branch might not exist or might be checked out elsewhere)
-          // The important part is that the worktree is removed
-          resolve();
-        });
-
-        deleteBranch.on("error", () => {
-          // Ignore branch deletion errors
-          resolve();
-        });
-      } else {
-        reject(new Error(`Failed to remove worktree: exit code ${code}`));
-      }
-    });
-
-    removeWt.stderr?.on("data", (data) => {
-      const message = data.toString();
-      if (message.toLowerCase().includes("fatal")) {
-        reject(new Error(message));
-      }
-    });
-
-    removeWt.on("error", reject);
-  });
+  // Step 2: Delete the branch (ignore errors - branch might not exist or might be checked out elsewhere)
+  try {
+    await execa("git", ["branch", "-D", worktreeName], { cwd: repoPath });
+  } catch {
+    // Ignore branch deletion errors
+  }
 }
 
 async function copyRecursive(src: string, dest: string): Promise<void> {
@@ -604,17 +388,5 @@ export async function installWorktreeDependencies(
   const packageManager = await detectPackageManager(repoPath);
 
   // Just do a fresh install from warm store (for timing comparison)
-  return new Promise((resolve, reject) => {
-    const install = spawn(packageManager, ["install"], { cwd: worktreePath });
-
-    install.on("exit", (code) => {
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(new Error(`Failed to install dependencies in worktree: exit code ${code}`));
-      }
-    });
-
-    install.on("error", reject);
-  });
+  await execa(packageManager, ["install"], { cwd: worktreePath });
 }
