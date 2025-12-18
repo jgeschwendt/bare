@@ -144,6 +144,65 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { repoPath, action } = body;
+
+    if (!repoPath) {
+      return NextResponse.json(
+        { error: "Missing required field: repoPath" },
+        { status: 400 }
+      );
+    }
+
+    if (action === "sync-main") {
+      // Return SSE stream
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        async start(controller) {
+          const send = (message: string) => {
+            controller.enqueue(encoder.encode(`data: ${message}\n\n`));
+          };
+
+          try {
+            const config = await readWorktreeConfig(repoPath);
+            const upstreamRemote = config.upstreamRemote || "origin";
+
+            send(`Syncing __main__ from ${upstreamRemote}/main...`);
+            await updateMainWorktree(repoPath, upstreamRemote);
+            send("✓ __main__ updated");
+
+            send("Installing dependencies...");
+            await installDependencies(repoPath);
+            send("✓ Dependencies installed");
+
+            send("[DONE]");
+            controller.close();
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            send(`ERROR: ${message}`);
+            controller.close();
+          }
+        },
+      });
+
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+        },
+      });
+    }
+
+    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

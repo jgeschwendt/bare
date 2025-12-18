@@ -159,7 +159,22 @@ export async function listWorktrees(
       }
     }
 
-    if (worktree.path) {
+    if (worktree.path && !worktree.bare) {
+      // Fetch commit message for HEAD
+      if (worktree.head) {
+        try {
+          const { stdout: message } = await execa(
+            "git",
+            ["log", "-1", "--format=%s", worktree.head],
+            { cwd: repoPath }
+          );
+          worktree.commitMessage = message;
+        } catch {
+          // Ignore errors fetching commit message
+          worktree.commitMessage = undefined;
+        }
+      }
+
       worktrees.push(worktree as import("./types").Worktree);
     }
   }

@@ -14,6 +14,7 @@ export interface Worktree {
   branch?: string; // refs/heads/branch-name
   bare?: boolean; // Is bare repo
   detached?: boolean; // Detached HEAD
+  commitMessage?: string; // Commit message of HEAD
 }
 
 export interface RegistryFile {
