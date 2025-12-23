@@ -321,19 +321,19 @@ export function OverviewDashboard({ repositories }: OverviewDashboardProps) {
               ? [mainWorktree, ...otherWorktrees]
               : otherWorktrees;
 
-            setTimeout(async () => {
+            // Update lastSynced in registry
+            await fetch(`/api/repos?id=${encodeURIComponent(repoId)}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({}),
+            });
+
+            setTimeout(() => {
               setRepoWorktrees((prev) => new Map(prev).set(repoId, sorted));
               setSyncingWorktrees((prev) => {
                 const next = new Map(prev);
                 next.delete(mainPath);
                 return next;
-              });
-
-              // Update lastSynced in registry
-              await fetch(`/api/repos?id=${encodeURIComponent(repoId)}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({}),
               });
 
               // Refresh to get updated data
