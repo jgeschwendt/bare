@@ -358,7 +358,14 @@ export function OverviewDashboard({ repositories }: OverviewDashboardProps) {
     if (selectedWorktrees.size === 0) return;
 
     const worktrees = repoWorktrees.get(repoId) || [];
-    const toDelete = Array.from(selectedWorktrees);
+    const repoWorktreePaths = new Set(worktrees.map((wt) => wt.path));
+
+    // Only delete worktrees that belong to this repository
+    const toDelete = Array.from(selectedWorktrees).filter((path) =>
+      repoWorktreePaths.has(path)
+    );
+
+    if (toDelete.length === 0) return;
 
     // Delete in parallel
     await Promise.all(
@@ -400,7 +407,13 @@ export function OverviewDashboard({ repositories }: OverviewDashboardProps) {
       ? [mainWorktree, ...otherWorktrees]
       : otherWorktrees;
     setRepoWorktrees((prev) => new Map(prev).set(repoId, sorted));
-    setSelectedWorktrees(new Set());
+
+    // Clear selections for deleted worktrees
+    setSelectedWorktrees((prev) => {
+      const next = new Set(prev);
+      toDelete.forEach((path) => next.delete(path));
+      return next;
+    });
   };
 
   const toggleWorktreeSelection = (wtPath: string) => {
@@ -427,21 +440,6 @@ export function OverviewDashboard({ repositories }: OverviewDashboardProps) {
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
     return date.toLocaleDateString();
-  };
-
-  const getTypeColor = (type?: string) => {
-    switch (type) {
-      case "turborepo":
-        return "badge-primary";
-      case "nx":
-        return "badge-secondary";
-      case "lerna":
-        return "badge-accent";
-      case "workspace":
-        return "badge-info";
-      default:
-        return "badge-ghost";
-    }
   };
 
   if (isLoading) {
@@ -570,17 +568,27 @@ export function OverviewDashboard({ repositories }: OverviewDashboardProps) {
                                 }
                               />
                             </form>
-                            {selectedWorktrees.size > 0 && (
-                              <button
-                                onClick={() =>
-                                  handleDeleteSelected(repo.path, repo.id)
-                                }
-                                className="px-2.5 py-1.5 text-sm rounded bg-red-600 text-white hover:bg-red-700 transition-colors"
-                              >
-                                <TrashIcon className="w-4 h-4" />
-                                Delete {selectedWorktrees.size}
-                              </button>
-                            )}
+                            {(() => {
+                              const repoWorktreePaths = new Set(
+                                worktrees.map((wt) => wt.path)
+                              );
+                              const selectedInThisRepo = Array.from(
+                                selectedWorktrees
+                              ).filter((path) => repoWorktreePaths.has(path));
+                              return (
+                                selectedInThisRepo.length > 0 && (
+                                  <button
+                                    onClick={() =>
+                                      handleDeleteSelected(repo.path, repo.id)
+                                    }
+                                    className="px-2.5 py-1.5 text-sm rounded bg-red-600 text-white hover:bg-red-700 transition-colors flex items-center gap-1"
+                                  >
+                                    <TrashIcon className="w-4 h-4" />
+                                    Delete {selectedInThisRepo.length}
+                                  </button>
+                                )
+                              );
+                            })()}
                           </div>
                         </td>
                       </tr>
