@@ -206,15 +206,15 @@ export function FinderSidebar({
   };
 
   return (
-    <div className="w-64 bg-base-100 border-r border-base-200 flex flex-col overflow-hidden">
-      <div className="p-3 border-b border-base-200 flex items-center justify-between">
+    <div className="w-64 bg-white dark:bg-black border-r border-black/10 dark:border-white/10 flex flex-col overflow-hidden">
+      <div className="p-3 border-b border-black/10 dark:border-white/10 flex items-center justify-between">
         <span className="text-xs font-semibold opacity-60 uppercase tracking-wider">
           Repositories
         </span>
         {selectedWorktrees.size > 0 && (
           <button
             onClick={handleBulkDelete}
-            className="btn btn-ghost btn-xs text-error"
+            className="px-2 py-1 text-xs rounded text-red-600 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
             title="Delete selected worktrees"
           >
             <TrashIcon className="w-4 h-4" />
@@ -227,7 +227,7 @@ export function FinderSidebar({
           <div key={username}>
             <button
               onClick={() => toggleUser(username)}
-              className="w-full px-3 py-2 flex items-center gap-2 hover:bg-base-200 text-left"
+              className="w-full px-3 py-2 flex items-center gap-2 hover:bg-black/10 dark:hover:bg-white/10 text-left"
             >
               <ChevronRightIcon
                 className={`w-4 h-4 transition-transform ${
@@ -257,8 +257,8 @@ export function FinderSidebar({
                     <div key={repo.id}>
                       <button
                         onClick={() => handleRepoClick(repo)}
-                        className={`w-full px-3 py-1.5 flex items-center gap-2 hover:bg-base-200 text-left ${
-                          currentRepo?.id === repo.id ? "bg-base-200" : ""
+                        className={`w-full px-3 py-1.5 flex items-center gap-2 hover:bg-black/10 dark:hover:bg-white/10 text-left ${
+                          currentRepo?.id === repo.id ? "bg-black/10 dark:bg-white/10" : ""
                         }`}
                       >
                         <ChevronRightIcon
@@ -299,7 +299,7 @@ export function FinderSidebar({
 
                                 <button
                                   onClick={() => handleWorktreeClick(wt)}
-                                  className="w-full px-3 py-1.5 hover:bg-base-200 text-left group"
+                                  className="w-full px-3 py-1.5 hover:bg-black/10 dark:hover:bg-white/10 text-left group"
                                 >
                                   <div className="flex items-center justify-between">
                                     <div className="min-w-0 flex-1">
@@ -332,7 +332,7 @@ export function FinderSidebar({
                                             e.stopPropagation();
                                             handleSync(repo);
                                           }}
-                                          className="btn btn-ghost btn-xs"
+                                          className="px-2 py-1 text-xs rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
                                           disabled={isSyncing}
                                         >
                                           <ArrowPathIcon className="w-3.5 h-3.5" />
@@ -343,7 +343,7 @@ export function FinderSidebar({
                                           e.stopPropagation();
                                           openInVSCode(wt.path);
                                         }}
-                                        className="btn btn-ghost btn-xs"
+                                        className="px-2 py-1 text-xs rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
                                       >
                                         <CodeBracketIcon className="w-3.5 h-3.5" />
                                       </button>
@@ -352,7 +352,7 @@ export function FinderSidebar({
                                           e.stopPropagation();
                                           openInTerminal(wt.path);
                                         }}
-                                        className="btn btn-ghost btn-xs"
+                                        className="px-2 py-1 text-xs rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
                                       >
                                         <CommandLineIcon className="w-3.5 h-3.5" />
                                       </button>
@@ -362,8 +362,8 @@ export function FinderSidebar({
                                             e.stopPropagation();
                                             toggleWorktreeSelection(wt.path);
                                           }}
-                                          className={`btn btn-ghost btn-xs ${
-                                            isSelected ? "text-error" : ""
+                                          className={`px-2 py-1 text-xs rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors ${
+                                            isSelected ? "text-red-600" : ""
                                           }`}
                                         >
                                           <TrashIcon className="w-3.5 h-3.5" />
@@ -378,7 +378,7 @@ export function FinderSidebar({
 
                           <button
                             onClick={() => onAddWorktree?.(repo)}
-                            className="w-full px-3 py-1.5 ml-3 flex items-center gap-2 hover:bg-base-200 text-left opacity-60 hover:opacity-100"
+                            className="w-full px-3 py-1.5 ml-3 flex items-center gap-2 hover:bg-black/10 dark:hover:bg-white/10 text-left opacity-60 hover:opacity-100"
                           >
                             <PlusIcon className="w-3.5 h-3.5" />
                             <span className="text-xs">Add worktree</span>

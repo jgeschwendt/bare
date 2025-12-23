@@ -121,10 +121,10 @@ export function ColumnBrowser({
   };
 
   return (
-    <div className="flex h-full bg-base-300">
+    <div className="flex h-full bg-black/5 dark:bg-white/5">
       {/* Column 1: Usernames */}
-      <div className="w-64 bg-base-100 border-r border-base-200 flex flex-col">
-        <div className="p-3 border-b border-base-200">
+      <div className="w-64 bg-white dark:bg-black border-r border-black/10 dark:border-white/10 flex flex-col">
+        <div className="p-3 border-b border-black/10 dark:border-white/10">
           <span className="text-xs font-semibold opacity-60 uppercase tracking-wider">
             Users
           </span>
@@ -134,8 +134,8 @@ export function ColumnBrowser({
             <button
               key={username}
               onClick={() => handleUsernameSelect(username)}
-              className={`w-full px-3 py-2 flex items-center justify-between hover:bg-base-200 text-left ${
-                selectedUsername === username ? "bg-primary text-primary-content" : ""
+              className={`w-full px-3 py-2 flex items-center justify-between hover:bg-black/10 dark:hover:bg-white/10 text-left ${
+                selectedUsername === username ? "bg-blue-600 text-white" : ""
               }`}
             >
               <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -152,8 +152,8 @@ export function ColumnBrowser({
 
       {/* Column 2: Repos */}
       {selectedUsername && (
-        <div className="w-64 bg-base-100 border-r border-base-200 flex flex-col">
-          <div className="p-3 border-b border-base-200">
+        <div className="w-64 bg-white dark:bg-black border-r border-black/10 dark:border-white/10 flex flex-col">
+          <div className="p-3 border-b border-black/10 dark:border-white/10">
             <span className="text-xs font-semibold opacity-60 uppercase tracking-wider">
               Repositories
             </span>
@@ -163,8 +163,8 @@ export function ColumnBrowser({
               <button
                 key={repo.id}
                 onClick={() => handleRepoSelect(repo)}
-                className={`w-full px-3 py-2 flex items-center justify-between hover:bg-base-200 text-left ${
-                  selectedRepo?.id === repo.id ? "bg-primary text-primary-content" : ""
+                className={`w-full px-3 py-2 flex items-center justify-between hover:bg-black/10 dark:hover:bg-white/10 text-left ${
+                  selectedRepo?.id === repo.id ? "bg-blue-600 text-white" : ""
                 }`}
               >
                 <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -182,14 +182,14 @@ export function ColumnBrowser({
 
       {/* Column 3: Worktrees */}
       {selectedRepo && (
-        <div className="w-80 bg-base-100 border-r border-base-200 flex flex-col">
-          <div className="p-3 border-b border-base-200 flex items-center justify-between">
+        <div className="w-80 bg-white dark:bg-black border-r border-black/10 dark:border-white/10 flex flex-col">
+          <div className="p-3 border-b border-black/10 dark:border-white/10 flex items-center justify-between">
             <span className="text-xs font-semibold opacity-60 uppercase tracking-wider">
               Worktrees
             </span>
             <button
               onClick={() => onAddWorktree?.(selectedRepo)}
-              className="btn btn-ghost btn-xs"
+              className="px-2 py-1 text-xs rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
               title="Add worktree"
             >
               <PlusIcon className="w-4 h-4" />
@@ -206,8 +206,8 @@ export function ColumnBrowser({
                 <button
                   key={wt.path}
                   onClick={() => handleWorktreeClick(wt)}
-                  className={`w-full px-3 py-2 hover:bg-base-200 text-left group ${
-                    selectedWorktree?.path === wt.path ? "bg-base-200" : ""
+                  className={`w-full px-3 py-2 hover:bg-black/10 dark:hover:bg-white/10 text-left group ${
+                    selectedWorktree?.path === wt.path ? "bg-black/10 dark:bg-white/10" : ""
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -236,7 +236,7 @@ export function ColumnBrowser({
                           e.stopPropagation();
                           openInVSCode(wt.path);
                         }}
-                        className="btn btn-ghost btn-xs"
+                        className="px-2 py-1 text-xs rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
                         title="Open in VS Code"
                       >
                         <CodeBracketIcon className="w-4 h-4" />
@@ -246,7 +246,7 @@ export function ColumnBrowser({
                           e.stopPropagation();
                           openInTerminal(wt.path);
                         }}
-                        className="btn btn-ghost btn-xs"
+                        className="px-2 py-1 text-xs rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
                         title="Open in Terminal"
                       >
                         <CommandLineIcon className="w-4 h-4" />
@@ -257,7 +257,7 @@ export function ColumnBrowser({
                             e.stopPropagation();
                             // Handle delete
                           }}
-                          className="btn btn-ghost btn-xs"
+                          className="px-2 py-1 text-xs rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
                           title="Delete worktree"
                         >
                           <TrashIcon className="w-4 h-4" />

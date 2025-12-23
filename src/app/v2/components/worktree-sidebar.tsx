@@ -304,10 +304,10 @@ export function WorktreeSidebar({ repoPath }: WorktreeSidebarProps) {
 
   if (isCollapsed) {
     return (
-      <div className="w-12 bg-base-300 border-r border-base-100 flex flex-col">
+      <div className="w-12 bg-black/5 dark:bg-white/5 border-r border-black/10 dark:border-white/10 flex flex-col">
         <button
           onClick={() => setIsCollapsed(false)}
-          className="btn btn-ghost btn-sm"
+          className="px-2 py-1 text-sm rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
           title="Expand sidebar"
         >
           <ChevronRightIcon className="w-5 h-5" />
@@ -320,21 +320,21 @@ export function WorktreeSidebar({ repoPath }: WorktreeSidebarProps) {
     <div
       ref={sidebarRef}
       style={{ width: `${width}px` }}
-      className="bg-base-300 border-r border-base-100 flex flex-col relative"
+      className="bg-black/5 dark:bg-white/5 border-r border-black/10 dark:border-white/10 flex flex-col relative"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-base-100">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-black/10 dark:border-white/10">
         <span className="text-xs font-semibold opacity-60 uppercase tracking-wider">
           Worktrees
           {selectedWorktrees.size > 0 && (
-            <span className="ml-2 text-primary">({selectedWorktrees.size})</span>
+            <span className="ml-2 text-blue-600">({selectedWorktrees.size})</span>
           )}
         </span>
         <div className="flex items-center gap-1">
           {selectedWorktrees.size > 0 && (
             <button
               onClick={handleBulkDelete}
-              className="btn btn-ghost btn-xs text-error"
+              className="px-2 py-1 text-xs rounded text-red-600 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
               title="Delete selected worktrees"
               disabled={isDeleting}
             >
@@ -344,7 +344,7 @@ export function WorktreeSidebar({ repoPath }: WorktreeSidebarProps) {
           {repoPath && (
             <button
               onClick={() => setIsAdding(!isAdding)}
-              className="btn btn-ghost btn-xs"
+              className="px-2 py-1 text-xs rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
               title="Add worktree"
             >
               <PlusIcon className="w-4 h-4" />
@@ -352,7 +352,7 @@ export function WorktreeSidebar({ repoPath }: WorktreeSidebarProps) {
           )}
           <button
             onClick={() => setIsCollapsed(true)}
-            className="btn btn-ghost btn-xs"
+            className="px-2 py-1 text-xs rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
             title="Collapse sidebar"
           >
             <ChevronLeftIcon className="w-4 h-4" />
@@ -362,19 +362,19 @@ export function WorktreeSidebar({ repoPath }: WorktreeSidebarProps) {
 
       {/* Add Worktree Form */}
       {isAdding && (
-        <div className="p-3 bg-base-200 border-b border-base-100">
+        <div className="p-3 bg-black/5 dark:bg-white/5 border-b border-black/10 dark:border-white/10">
           <form onSubmit={handleAddWorktree} className="space-y-2">
             <input
               type="text"
               value={newWorktreeName}
               onChange={(e) => setNewWorktreeName(e.target.value)}
               placeholder="feature-name"
-              className="input input-bordered input-sm w-full"
+              className="px-2.5 py-1.5 text-sm rounded border border-black/20 dark:border-white/20 w-full bg-transparent placeholder-black/40 dark:placeholder-white/40"
               autoFocus
               disabled={isCreating}
             />
             {createError && (
-              <div className="text-xs text-error">{createError}</div>
+              <div className="text-xs text-red-600">{createError}</div>
             )}
             {createProgress.length > 0 && (
               <div className="text-xs opacity-60 font-mono">
@@ -392,14 +392,14 @@ export function WorktreeSidebar({ repoPath }: WorktreeSidebarProps) {
                   setCreateError(null);
                   setCreateProgress([]);
                 }}
-                className="btn btn-ghost btn-xs flex-1"
+                className="px-2 py-1 text-xs rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors flex-1"
                 disabled={isCreating}
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="btn btn-success btn-xs flex-1"
+                className="px-2 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700 transition-colors flex-1"
                 disabled={isCreating || !newWorktreeName.trim()}
               >
                 {isCreating ? "Creating..." : "Create"}
@@ -461,7 +461,7 @@ export function WorktreeSidebar({ repoPath }: WorktreeSidebarProps) {
                     )}
                     <div
                       key={index}
-                      className="flex items-center justify-between group w-full px-3 py-2 hover:bg-base-200"
+                      className="flex items-center justify-between group w-full px-3 py-2 hover:bg-black/10 dark:hover:bg-white/10"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
@@ -493,7 +493,7 @@ export function WorktreeSidebar({ repoPath }: WorktreeSidebarProps) {
                             e.stopPropagation();
                             handleOpen(wt.path, "vscode");
                           }}
-                          className="btn btn-ghost btn-xs"
+                          className="px-2 py-1 text-xs rounded hover:bg-black/20 dark:hover:bg-white/20 transition-colors"
                           title="Open in VS Code"
                         >
                           <CodeBracketIcon className="w-4 h-4" />
@@ -503,7 +503,7 @@ export function WorktreeSidebar({ repoPath }: WorktreeSidebarProps) {
                             e.stopPropagation();
                             handleOpen(wt.path, "terminal");
                           }}
-                          className="btn btn-ghost btn-xs"
+                          className="px-2 py-1 text-xs rounded hover:bg-black/20 dark:hover:bg-white/20 transition-colors"
                           title="Open in Terminal"
                         >
                           <CommandLineIcon className="w-4 h-4" />
@@ -514,8 +514,8 @@ export function WorktreeSidebar({ repoPath }: WorktreeSidebarProps) {
                               e.stopPropagation();
                               handleSync();
                             }}
-                            className={`btn btn-ghost btn-xs ${
-                              isSyncing ? "loading" : ""
+                            className={`px-2 py-1 text-xs rounded hover:bg-black/20 dark:hover:bg-white/20 transition-colors ${
+                              isSyncing ? "" : ""
                             }`}
                             title="Sync main worktree"
                             disabled={isSyncing}
@@ -532,8 +532,8 @@ export function WorktreeSidebar({ repoPath }: WorktreeSidebarProps) {
                               e.stopPropagation();
                               toggleWorktreeSelection(wt.path);
                             }}
-                            className={`btn btn-ghost btn-xs ${
-                              selectedWorktrees.has(wt.path) ? "text-error" : ""
+                            className={`px-2 py-1 text-xs rounded hover:bg-black/20 dark:hover:bg-white/20 transition-colors ${
+                              selectedWorktrees.has(wt.path) ? "text-red-600" : ""
                             }`}
                             title={selectedWorktrees.has(wt.path) ? "Deselect worktree" : "Select for deletion"}
                           >
@@ -551,7 +551,7 @@ export function WorktreeSidebar({ repoPath }: WorktreeSidebarProps) {
 
       {/* Resize Handle */}
       <div
-        className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary/50 transition-colors"
+        className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-600/50 transition-colors"
         onMouseDown={() => setIsResizing(true)}
       />
     </div>

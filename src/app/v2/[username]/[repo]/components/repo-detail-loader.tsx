@@ -3,14 +3,16 @@ import { RepoDetailView } from "./repo-detail-view";
 import { notFound } from "next/navigation";
 
 interface RepoDetailLoaderProps {
-  username: string;
-  repoName: string;
+  params: Promise<{
+    username: string;
+    repo: string;
+  }>;
 }
 
 export async function RepoDetailLoader({
-  username,
-  repoName,
+  params,
 }: RepoDetailLoaderProps) {
+  const { username, repo: repoName } = await params;
   const repositories = await getRepositories();
 
   // Find the matching repository

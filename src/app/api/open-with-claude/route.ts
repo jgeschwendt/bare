@@ -25,19 +25,38 @@ export async function POST(request: NextRequest) {
           let hasClaudeProcess = false;
 
           try {
-            const result = await execa("lsof", ["-c", "node", "+D", path]);
-            const lines = result.stdout.split('\n');
-            hasClaudeProcess = lines.some((line: string) =>
-              line.includes('cwd') && line.includes(path)
-            );
-          } catch (err: any) {
-            // lsof returns non-zero even when it finds results sometimes
-            if (err.stdout) {
-              const lines = err.stdout.split('\n');
-              hasClaudeProcess = lines.some((line: string) =>
-                line.includes('cwd') && line.includes(path)
-              );
+            // Find PIDs of processes with 'claude' in command line
+            const psResult = await execa("ps", ["-axo", "pid,command"]);
+            const processes = psResult.stdout.split('\n');
+            const pids = processes
+              .filter((line: string) => line.includes('claude'))
+              .map((line: string) => line.trim().split(/\s+/)[0])
+              .filter(Boolean);
+
+            console.log('Looking for path:', path);
+            console.log('Claude PIDs found:', pids);
+
+            // Check working directory for each PID
+            for (const pid of pids) {
+              try {
+                const cwdResult = await execa("lsof", ["-p", pid, "-a", "-d", "cwd", "-Fn"]);
+                const cwd = cwdResult.stdout.split('\n').find((line: string) => line.startsWith('n'));
+                if (cwd) {
+                  const workingDir = cwd.substring(1);
+                  console.log(`  PID ${pid} cwd:`, workingDir);
+                  if (workingDir === path) {
+                    hasClaudeProcess = true;
+                    break;
+                  }
+                }
+              } catch {
+                // Skip PIDs that error
+              }
             }
+            console.log('Has claude process in path:', hasClaudeProcess);
+          } catch (err) {
+            console.log('Error checking for claude process:', err);
+            hasClaudeProcess = false;
           }
 
           send("Opening VS Code...");

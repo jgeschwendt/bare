@@ -4,7 +4,7 @@ export interface Repository {
   path: string; // Absolute path to repo
   remoteUrl?: string; // Git remote URL
   addedAt: string; // ISO timestamp
-  lastAccessed: string; // ISO timestamp
+  lastSynced: string; // ISO timestamp
   type?: "turborepo" | "nx" | "lerna" | "workspace" | "standard";
 }
 

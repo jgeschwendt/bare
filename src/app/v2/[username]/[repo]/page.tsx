@@ -8,18 +8,16 @@ interface PageProps {
   }>;
 }
 
-export default async function RepoDetailPage({ params }: PageProps) {
-  const { username, repo } = await params;
-
+export default function RepoDetailPage({ params }: PageProps) {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="text-sm text-gray-400">Loading...</div>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-sm opacity-40">Loading...</div>
         </div>
       }
     >
-      <RepoDetailLoader username={username} repoName={repo} />
+      <RepoDetailLoader params={params} />
     </Suspense>
   );
 }

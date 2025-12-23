@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Dialog, DialogPanel, DialogTitle } from "@/ui/dialog";
 import type { Repository } from "@/lib/types";
 
 interface AddWorktreeDialogProps {
@@ -73,12 +74,14 @@ export function AddWorktreeDialog({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <dialog className="modal modal-open">
-      <div className="modal-box">
-        <h3 className="font-bold text-lg mb-4">Add Worktree</h3>
+    <Dialog open={isOpen} onClose={onClose}>
+      <div className="fixed inset-0 bg-black/50 z-50" aria-hidden="true" />
+      <div className="fixed inset-0 flex items-center justify-center z-50">
+        <DialogPanel className="bg-white dark:bg-black/90 border border-black/10 dark:border-white/10 rounded-lg shadow-xl w-full max-w-lg p-6">
+          <DialogTitle className="font-bold text-lg mb-4">
+            Add Worktree
+          </DialogTitle>
 
         {repository && (
           <div className="text-sm opacity-60 mb-4">
@@ -87,14 +90,14 @@ export function AddWorktreeDialog({
         )}
 
         <form onSubmit={handleSubmit}>
-          <div className="form-control">
-            <label className="label">
-              <span className="label-text">Worktree Name</span>
+          <div className="mb-4">
+            <label className="block mb-2">
+              <span className="text-sm font-medium">Worktree Name</span>
             </label>
             <input
               type="text"
               placeholder="feature/new-branch"
-              className="input input-bordered"
+              className="px-3 py-2 rounded border border-black/20 dark:border-white/20 w-full bg-transparent placeholder-black/40 dark:placeholder-white/40"
               value={worktreeName}
               onChange={(e) => setWorktreeName(e.target.value)}
               disabled={isCreating}
@@ -103,13 +106,13 @@ export function AddWorktreeDialog({
           </div>
 
           {error && (
-            <div className="alert alert-error mt-4">
+            <div className="p-4 rounded-lg bg-red-50 text-red-900 border border-red-200 mt-4">
               <span className="text-sm">{error}</span>
             </div>
           )}
 
           {progress.length > 0 && (
-            <div className="mt-4 p-3 bg-base-200 rounded-lg">
+            <div className="mt-4 p-3 bg-black/5 dark:bg-white/5 rounded-lg border border-black/10 dark:border-white/10">
               <div className="text-xs font-mono space-y-1 max-h-48 overflow-y-auto">
                 {progress.map((line, i) => (
                   <div key={i} className="opacity-80">
@@ -120,10 +123,10 @@ export function AddWorktreeDialog({
             </div>
           )}
 
-          <div className="modal-action">
+          <div className="flex gap-2 justify-end mt-6">
             <button
               type="button"
-              className="btn btn-ghost"
+              className="px-3 py-1.5 text-sm rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
               onClick={onClose}
               disabled={isCreating}
             >
@@ -131,12 +134,12 @@ export function AddWorktreeDialog({
             </button>
             <button
               type="submit"
-              className="btn btn-primary"
+              className="px-3 py-1.5 text-sm rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-2"
               disabled={isCreating || !worktreeName.trim()}
             >
               {isCreating ? (
                 <>
-                  <span className="loading loading-spinner loading-sm"></span>
+                  <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                   Creating...
                 </>
               ) : (
@@ -145,10 +148,8 @@ export function AddWorktreeDialog({
             </button>
           </div>
         </form>
+        </DialogPanel>
       </div>
-      <form method="dialog" className="modal-backdrop">
-        <button onClick={onClose}>close</button>
-      </form>
-    </dialog>
+    </Dialog>
   );
 }

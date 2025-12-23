@@ -26,10 +26,10 @@ export function AllReposView({ repositories, onRepoSelect }: AllReposViewProps) 
       groups.get(username)!.push(repo);
     }
 
-    // Sort repos within each group by lastAccessed
+    // Sort repos within each group by lastSynced
     for (const repos of groups.values()) {
       repos.sort((a, b) =>
-        new Date(b.lastAccessed).getTime() - new Date(a.lastAccessed).getTime()
+        new Date(b.lastSynced).getTime() - new Date(a.lastSynced).getTime()
       );
     }
 
@@ -52,11 +52,11 @@ export function AllReposView({ repositories, onRepoSelect }: AllReposViewProps) 
 
   const getTypeColor = (type?: string) => {
     switch (type) {
-      case "turborepo": return "badge-primary";
-      case "nx": return "badge-secondary";
-      case "lerna": return "badge-accent";
-      case "workspace": return "badge-info";
-      default: return "badge-ghost";
+      case "turborepo": return "bg-blue-100 text-blue-800";
+      case "nx": return "bg-purple-100 text-purple-800";
+      case "lerna": return "bg-pink-100 text-pink-800";
+      case "workspace": return "bg-cyan-100 text-cyan-800";
+      default: return "bg-black/10 dark:bg-white/10";
     }
   };
 
@@ -72,16 +72,16 @@ export function AllReposView({ repositories, onRepoSelect }: AllReposViewProps) 
                 <button
                   key={repo.id}
                   onClick={() => onRepoSelect(repo)}
-                  className="card bg-base-100 shadow hover:shadow-lg transition-shadow text-left"
+                  className="rounded-lg shadow hover:shadow-lg transition-shadow text-left bg-white dark:bg-black/90 border border-black/10 dark:border-white/10"
                 >
-                  <div className="card-body p-5">
+                  <div className="p-5">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0 flex-1">
                         <FolderIcon className="w-5 h-5 opacity-60 shrink-0" />
                         <h3 className="font-semibold truncate">{repo.name}</h3>
                       </div>
                       {repo.type && (
-                        <span className={`badge badge-sm ${getTypeColor(repo.type)}`}>
+                        <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${getTypeColor(repo.type)}`}>
                           {repo.type}
                         </span>
                       )}
@@ -89,7 +89,7 @@ export function AllReposView({ repositories, onRepoSelect }: AllReposViewProps) 
 
                     <div className="flex items-center gap-1.5 text-xs opacity-60 mt-2">
                       <ClockIcon className="w-3.5 h-3.5" />
-                      <span>{formatDate(repo.lastAccessed)}</span>
+                      <span>{formatDate(repo.lastSynced)}</span>
                     </div>
 
                     {repo.remoteUrl && (

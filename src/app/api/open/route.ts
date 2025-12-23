@@ -13,14 +13,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let args: string[];
-
     switch (app) {
       case "vscode":
-        args = ["-a", "Visual Studio Code", path];
+        await execa("code", [path]);
         break;
       case "terminal":
-        args = ["-a", "Terminal", path];
+        await execa("open", ["-a", "Terminal", path]);
         break;
       default:
         return NextResponse.json(
@@ -28,8 +26,6 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
     }
-
-    await execa("open", args);
 
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -17,7 +17,7 @@ export function DashboardV2({ repositories }: DashboardV2Props) {
 
   return (
     <>
-      <div className="min-h-screen bg-base-200 flex flex-col">
+      <div className="min-h-screen flex flex-col">
         <NavbarV2
           repositories={repositories}
           onAddRepo={() => setIsAddDialogOpen(true)}

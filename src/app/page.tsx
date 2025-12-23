@@ -1,7 +1,7 @@
 import type { JSX } from "react";
 import { Suspense } from "react";
-import { Repositories } from "@/components/repositories";
-import { Dashboard } from "@/components/dashboard";
+import { Repositories } from "@/app/components/repositories";
+import { Dashboard } from "@/app/components/dashboard";
 
 export default function Home(): JSX.Element {
   return (

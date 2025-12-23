@@ -52,7 +52,7 @@ export async function getRepository(id: string): Promise<Repository | null> {
 }
 
 export async function addRepository(
-  repo: Omit<Repository, "id" | "addedAt" | "lastAccessed">
+  repo: Omit<Repository, "id" | "addedAt" | "lastSynced">
 ): Promise<Repository> {
   const registry = await readRegistry();
 
@@ -66,7 +66,7 @@ export async function addRepository(
     ...repo,
     id: crypto.randomUUID(),
     addedAt: new Date().toISOString(),
-    lastAccessed: new Date().toISOString(),
+    lastSynced: new Date().toISOString(),
   };
 
   registry.repositories.push(newRepo);
@@ -111,7 +111,7 @@ export async function updateRepository(
   const updatedRepo: Repository = {
     ...registry.repositories[index],
     ...updates,
-    lastAccessed: new Date().toISOString(),
+    lastSynced: new Date().toISOString(),
   };
 
   registry.repositories[index] = updatedRepo;

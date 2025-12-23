@@ -24,12 +24,12 @@ export function RepoDetailView({ repository }: RepoDetailViewProps) {
   const username = extractUsername(repository.path);
 
   return (
-    <div className="min-h-screen bg-base-200 flex flex-col">
-      <nav className="navbar bg-base-300 border-b border-base-100 min-h-12 h-12 px-3">
+    <div className="min-h-screen flex flex-col">
+      <nav className="bg-black/5 dark:bg-white/5 border-b border-black/10 dark:border-white/10 min-h-12 h-12 px-3 flex items-center">
         <div className="w-full flex items-center gap-3">
           <Link
             href="/v2"
-            className="btn btn-ghost btn-sm btn-circle"
+            className="p-2 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
             title="Back to overview"
           >
             <ChevronLeftIcon className="w-5 h-5" />

@@ -3,6 +3,7 @@ import {
   getRepositories,
   addRepository,
   removeRepository,
+  updateRepository,
 } from "@/lib/repos";
 
 export async function GET() {
@@ -37,6 +38,27 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(repo, { status: 201 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Missing required parameter: id" },
+        { status: 400 }
+      );
+    }
+
+    const body = await request.json();
+    const repo = await updateRepository(id, body);
+    return NextResponse.json(repo);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return NextResponse.json({ error: message }, { status: 400 });

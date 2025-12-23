@@ -1,6 +1,8 @@
 "use client";
 
 import type { Repository } from "@/lib/types";
+import { RemotesManagerV2 } from "./remotes-manager-v2";
+import { WorktreeConfigV2 } from "./worktree-config-v2";
 
 interface RepositoryViewV2Props {
   repository?: Repository;
@@ -20,9 +22,9 @@ export function RepositoryViewV2({ repository }: RepositoryViewV2Props) {
 
   return (
     <div className="space-y-6">
-      <div className="card bg-base-100 shadow-xl">
-        <div className="card-body">
-          <h2 className="card-title">Repository Info</h2>
+      <div className="rounded-lg shadow-lg bg-white">
+        <div className="p-6">
+          <h2 className="text-lg font-bold mb-4">Repository Info</h2>
           <div className="space-y-3">
             <div className="flex justify-between">
               <span className="opacity-60">Name</span>
@@ -47,6 +49,10 @@ export function RepositoryViewV2({ repository }: RepositoryViewV2Props) {
           </div>
         </div>
       </div>
+
+      <RemotesManagerV2 repoPath={repository.path} />
+
+      <WorktreeConfigV2 repoPath={repository.path} />
     </div>
   );
 }
